@@ -1,18 +1,30 @@
 'use server';
 
 import { revalidatePath } from "next/cache";
+// import prisma from "@/lib/db"; // Eğer Prisma kullanıyorsan bunu aç
 
-// Bu fonksiyon, checkbox'a tıklandığında sunucuda çalışacak
-export async function toggleTodo(id: number, currentStatus: boolean) {
-  
-  // 1. Yapay Gecikme: Sanki veritabanın yavaşmış gibi 1 saniye bekletiyoruz.
-  // Bu süre içinde arayüz çoktan güncellenmiş olacak (Optimistic UI sayesinde).
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+export async function toggleTodo(id: string, currentStatus: boolean) {
+  try {
+    // 1. Yapay gecikme (Optimistic farkını görmek için, sonra silebilirsin)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  // 2. Normalde burada veritabanı güncelleme kodun olur.
-  // Örn: db.todo.update(...) 
-  console.log(`SERVER: Todo ID ${id} durumu ${!currentStatus} olarak güncellendi.`);
+    // 2. Veritabanı Güncellemesi
+    // Prisma kullanıyorsan kodun şöyle olacak:
+    /*
+    await prisma.todo.update({
+      where: { id },
+      data: { completed: !currentStatus },
+    });
+    */
+    
+    // Şimdilik sadece log basıyoruz:
+    console.log(`SERVER: Todo ${id} durumu ${!currentStatus} oldu.`);
 
-  // 3. Next.js'e verinin değiştiğini ve sayfayı yenilemesi gerektiğini söylüyoruz.
-  revalidatePath("/");
+    // 3. Sayfayı yenile ki güncel veri gelsin
+    revalidatePath("/");
+    
+  } catch (error) {
+    console.error("Hata oluştu:", error);
+    // Hata durumunda bir şey döndürebilirsin
+  }
 }

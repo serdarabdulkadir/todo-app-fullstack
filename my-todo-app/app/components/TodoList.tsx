@@ -1,22 +1,22 @@
 'use client';
 
 import { useOptimistic, startTransition } from 'react';
-import { toggleTodo } from '../actions'; // Bir üst klasördeki actions dosyasından alıyoruz
+import { toggleTodo } from '@/app/actions'; // Action'ı import et
 
+// Senin Todo tipin muhtemelen böyledir, değilse kendi tipine göre düzenle
 type Todo = {
-  id: number;
+  id: string;
   title: string;
   completed: boolean;
 };
 
 export default function TodoList({ todos }: { todos: Todo[] }) {
   
-  // --- OPTIMISTIC UI AYARI ---
-  // useOptimistic: Görünen listeyi anında manipüle etmemizi sağlar.
+  // --- OPTIMISTIC AYARI ---
   const [optimisticTodos, setOptimisticTodo] = useOptimistic(
     todos,
-    (state, todoId: number) => {
-      // Tıklanan todo'yu bul ve completed değerini tersine çevir
+    (state, todoId: string) => {
+      // Tıklanan todo'yu bul ve 'completed' değerini tersine çevir
       return state.map((t) =>
         t.id === todoId ? { ...t, completed: !t.completed } : t
       );
@@ -24,45 +24,46 @@ export default function TodoList({ todos }: { todos: Todo[] }) {
   );
 
   const handleToggle = async (todo: Todo) => {
-    // 1. ARAYÜZÜ GÜNCELLE (Hemen!)
+    // 1. GÖRÜNÜMÜ GÜNCELLE (ANINDA)
     startTransition(() => {
-      setOptimisticTodo(todo.id); 
+      setOptimisticTodo(todo.id);
     });
 
-    // 2. SUNUCUYA HABER VER (Arka planda)
+    // 2. SUNUCUYA İSTEK AT (ARKADAN)
     await toggleTodo(todo.id, todo.completed);
   };
 
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-col gap-3 w-full">
       {optimisticTodos.map((todo) => (
         <li
           key={todo.id}
-          className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-300
+          className={`flex items-center justify-between p-4 bg-gray-800 rounded-xl border transition-all duration-300
             ${todo.completed 
-              ? 'bg-green-900/20 border-green-800' 
-              : 'bg-gray-800 border-gray-700'}
+              ? 'border-green-500/50 bg-green-900/10' // Tamamlandıysa yeşilimsi
+              : 'border-gray-700 hover:border-gray-600'} 
           `}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            {/* Checkbox */}
             <input
               type="checkbox"
               checked={todo.completed}
-              // Dikkat: Burada onClick veya onChange içinde startTransition kullanıyoruz
-              onChange={() => handleToggle(todo)}
-              className="w-5 h-5 cursor-pointer accent-green-500 rounded focus:ring-green-500"
+              onChange={() => handleToggle(todo)} // Tıklama olayı
+              className="w-6 h-6 rounded-md border-gray-600 text-green-500 focus:ring-green-500/50 bg-gray-700 cursor-pointer transition-all"
             />
+            
+            {/* Yazı */}
             <span 
-              className={`text-lg ${todo.completed ? 'line-through text-gray-500' : 'text-gray-100'}`}
+              className={`text-lg font-medium transition-all ${
+                todo.completed 
+                  ? 'line-through text-gray-500' 
+                  : 'text-gray-100'
+              }`}
             >
               {todo.title}
             </span>
           </div>
-          
-          {/* Debug için küçük bir bilgi (İstersen silebilirsin) */}
-          <span className="text-xs text-gray-600">
-            {todo.completed ? 'Tamamlandı' : 'Bekliyor'}
-          </span>
         </li>
       ))}
     </ul>
