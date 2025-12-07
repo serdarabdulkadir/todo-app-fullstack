@@ -8,23 +8,18 @@ type Todo = { _id: string; text: string; completed: boolean; isOptimistic?: bool
 const API_URL = "https://todo-backend-api-zfln.onrender.com"; 
 const GOOGLE_CLIENT_ID = "845413910676-7u28570rarcg6rrjjth69a8napcusf45.apps.googleusercontent.com";
 
-export default function Home() {
-  return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <AppContent />
-    </GoogleOAuthProvider>
-  );
-}
+// --- UI BİLEŞENLERİ (DIŞARI TAŞINDI - SORUN ÇÖZÜLDÜ) ---
 
-// --- İKONLAR (SVG) ---
-const EyeIcon = ({ show }: { show: boolean }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400">
-    {show ? (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-    ) : (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-    )}
-  </svg>
+const EyeIcon = ({ show, onClick }: { show: boolean, onClick: () => void }) => (
+  <div onClick={onClick} className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer z-10">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400 hover:text-white transition">
+      {show ? (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+      ) : (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+      )}
+    </svg>
+  </div>
 );
 
 const TrashIcon = () => (
@@ -44,6 +39,69 @@ const EmptyStateIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
   </svg>
 );
+
+// Toast Bileşeni
+const Toast = ({ error, success }: { error: string, success: string }) => (
+  (error || success) ? (
+    <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-bounce-in transition-all duration-300 ${error ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}>
+      <span className="font-medium text-sm">{error || success}</span>
+    </div>
+  ) : null
+);
+
+// Input Bileşeni
+const Input = ({ type, placeholder, value, onChange, icon }: any) => (
+  <div className="relative mb-4">
+    <input 
+      type={type} 
+      placeholder={placeholder} 
+      value={value} 
+      onChange={onChange} 
+      className="appearance-none block w-full px-4 py-3.5 pl-4 bg-gray-800 border border-gray-700 rounded-xl placeholder-gray-500 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-base" 
+      required 
+    />
+    {icon}
+  </div>
+);
+
+// Button Bileşeni
+const Button = ({ text, onClick, type = "submit", secondary = false }: any) => (
+  <button 
+    type={type} 
+    onClick={onClick} 
+    className={`w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-base font-bold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all ${secondary ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"}`}
+  >
+    {text}
+  </button>
+);
+
+// AuthLayout Bileşeni
+const AuthLayout = ({ title, children, footer, error, success }: any) => (
+  <div className="min-h-screen bg-gray-950 flex flex-col justify-center px-4 sm:px-6 lg:px-8 font-sans relative overflow-hidden">
+    <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+        <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-blue-600/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-purple-600/20 rounded-full blur-3xl"></div>
+    </div>
+
+    <Toast error={error} success={success} />
+    
+    <div className="sm:mx-auto sm:w-full sm:max-w-md z-10">
+      <div className="bg-gray-900 py-10 px-6 shadow-2xl rounded-2xl border border-gray-800">
+        <h2 className="mb-8 text-center text-3xl font-extrabold text-white tracking-tight">{title}</h2>
+        {children}
+      </div>
+      {footer}
+    </div>
+  </div>
+);
+
+export default function Home() {
+  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AppContent />
+    </GoogleOAuthProvider>
+  );
+}
 
 function AppContent() {
   const [view, setView] = useState<"login" | "register" | "todo" | "forgot-password" | "verify-email">("login");
@@ -104,7 +162,7 @@ function AppContent() {
   };
 
   const deleteTodo = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Satıra tıklamayı engelle
+    e.stopPropagation();
     const prev = [...todos]; setTodos(p => p.filter(t => t._id !== id));
     try {
         const res = await fetch(`${API_URL}/todos/${id}`, { method: "DELETE" });
@@ -122,12 +180,17 @@ function AppContent() {
 
   // --- AUTH ---
   const handleGoogle = async (cred: any) => {
+    console.log("Google yanıtı:", cred); // Hata ayıklama için
     try {
         const res = await fetch(`${API_URL}/google-login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: cred.credential }) });
         const data = await res.json();
-        if(res.ok) { setCurrentUser(data.user.email); changeView("todo"); } else setError("Google Hatası");
-    } catch { setError("Bağlantı Hatası"); }
+        if(res.ok) { setCurrentUser(data.user.email); changeView("todo"); } else setError("Google Girişi Reddedildi");
+    } catch (err) { 
+      console.error(err);
+      setError("Bağlantı Hatası"); 
+    }
   };
+  
   const handleAuth = async (e: React.FormEvent, type: "login" | "register") => {
     e.preventDefault(); if(type === "register" && password.length < 6) { setError("Şifre çok kısa!"); return; }
     try {
@@ -139,6 +202,7 @@ function AppContent() {
       } else setError(data.message);
     } catch { setError("Sunucu Hatası"); }
   };
+
   const verifyEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -147,6 +211,7 @@ function AppContent() {
         else setError("Hatalı Kod");
     } catch { setError("Hata"); }
   };
+
   const forgotPass = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -154,6 +219,7 @@ function AppContent() {
         if(res.ok) { setSuccessMsg("Kod Gönderildi"); setResetStep(2); setTimer(120); } else setError("Hata");
     } catch { setError("Hata"); }
   };
+
   const resetPass = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -164,50 +230,9 @@ function AppContent() {
 
   const logout = () => { changeView("login"); setTodos([]); setCurrentUser(""); setEmail(""); setPassword(""); };
 
-  // --- UI BİLEŞENLERİ ---
-  const Toast = () => (
-    (error || successMsg) ? (
-      <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-bounce-in transition-all duration-300 ${error ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}>
-        <span className="font-medium text-sm">{error || successMsg}</span>
-      </div>
-    ) : null
-  );
-
-  const AuthLayout = ({ title, children, footer }: any) => (
-    <div className="min-h-screen bg-gray-950 flex flex-col justify-center px-4 sm:px-6 lg:px-8 font-sans relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-          <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-blue-600/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-purple-600/20 rounded-full blur-3xl"></div>
-      </div>
-
-      <Toast />
-      <div className="sm:mx-auto sm:w-full sm:max-w-md z-10">
-        <div className="bg-gray-900 py-10 px-6 shadow-2xl rounded-2xl border border-gray-800">
-          <h2 className="mb-8 text-center text-3xl font-extrabold text-white tracking-tight">{title}</h2>
-          {children}
-        </div>
-        {footer}
-      </div>
-    </div>
-  );
-
-  const Input = ({ type, placeholder, value, onChange, icon }: any) => (
-    <div className="relative mb-4">
-      <input type={type} placeholder={placeholder} value={value} onChange={onChange} className="appearance-none block w-full px-4 py-3.5 pl-4 bg-gray-800 border border-gray-700 rounded-xl placeholder-gray-500 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-base" required />
-      {icon && <div className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer">{icon}</div>}
-    </div>
-  );
-
-  const Button = ({ text, onClick, type = "submit", secondary = false }: any) => (
-    <button type={type} onClick={onClick} className={`w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-base font-bold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all ${secondary ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"}`}>
-      {text}
-    </button>
-  );
-
   // --- SAYFALAR ---
   if (view === "verify-email") return (
-    <AuthLayout title="Doğrulama">
+    <AuthLayout title="Doğrulama" error={error} success={successMsg}>
       <form onSubmit={verifyEmail}>
         <p className="text-gray-400 text-center mb-6 text-sm">Kod <b>{email}</b> adresine gönderildi.</p>
         <Input type="text" placeholder="Gelen Kodu Giriniz" value={verificationCode} onChange={(e:any) => setVerificationCode(e.target.value)} />
@@ -218,7 +243,7 @@ function AppContent() {
   );
 
   if (view === "forgot-password") return (
-    <AuthLayout title="Şifre Sıfırla">
+    <AuthLayout title="Şifre Sıfırla" error={error} success={successMsg}>
       {resetStep === 1 ? (
         <form onSubmit={forgotPass}>
           <Input type="email" placeholder="E-posta Adresiniz" value={email} onChange={(e:any) => setEmail(e.target.value)} />
@@ -227,7 +252,13 @@ function AppContent() {
       ) : (
         <form onSubmit={resetPass}>
            <Input type="text" placeholder="Onay Kodu" value={resetCode} onChange={(e:any) => setResetCode(e.target.value)} />
-           <Input type={showPassword ? "text" : "password"} placeholder="Yeni Şifre" value={newPassword} onChange={(e:any) => setNewPassword(e.target.value)} icon={<div onClick={() => setShowPassword(!showPassword)}><EyeIcon show={showPassword}/></div>} />
+           <Input 
+             type={showPassword ? "text" : "password"} 
+             placeholder="Yeni Şifre" 
+             value={newPassword} 
+             onChange={(e:any) => setNewPassword(e.target.value)} 
+             icon={<EyeIcon show={showPassword} onClick={() => setShowPassword(!showPassword)} />} 
+           />
            <Button text="Şifreyi Güncelle" />
         </form>
       )}
@@ -236,20 +267,26 @@ function AppContent() {
   );
 
   if (view === "login" || view === "register") return (
-    <AuthLayout title={view === "login" ? "Tekrar Hoşgeldin" : "Hesap Oluştur"} footer={
+    <AuthLayout title={view === "login" ? "Tekrar Hoşgeldin" : "Hesap Oluştur"} error={error} success={successMsg} footer={
       <p className="mt-6 text-center text-sm text-gray-400">
         {view === "login" ? "Hesabın yok mu?" : "Zaten üye misin?"} <button onClick={() => changeView(view === "login" ? "register" : "login")} className="font-semibold text-blue-500 hover:text-blue-400 ml-1">{view === "login" ? "Kayıt Ol" : "Giriş Yap"}</button>
       </p>
     }>
       <form onSubmit={(e) => handleAuth(e, view)} className="space-y-4">
         <Input type="email" placeholder="E-posta" value={email} onChange={(e:any) => setEmail(e.target.value)} />
-        <Input type={showPassword ? "text" : "password"} placeholder="Şifre" value={password} onChange={(e:any) => setPassword(e.target.value)} icon={<div onClick={() => setShowPassword(!showPassword)}><EyeIcon show={showPassword}/></div>} />
+        <Input 
+          type={showPassword ? "text" : "password"} 
+          placeholder="Şifre" 
+          value={password} 
+          onChange={(e:any) => setPassword(e.target.value)} 
+          icon={<EyeIcon show={showPassword} onClick={() => setShowPassword(!showPassword)} />} 
+        />
         {view === "login" && <div className="flex justify-end"><button type="button" onClick={() => changeView("forgot-password")} className="text-xs text-gray-400 hover:text-white">Şifremi Unuttum?</button></div>}
         <Button text={view === "login" ? "Giriş Yap" : "Kayıt Ol"} />
       </form>
       <div className="mt-6">
         <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700"></div></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-gray-900 text-gray-500">veya</span></div></div>
-        <div className="mt-6"><GoogleLogin onSuccess={handleGoogle} onError={() => setError("Google Hatası")} theme="filled_black" shape="pill" width="100%" /></div>
+        <div className="mt-6 flex justify-center"><GoogleLogin onSuccess={handleGoogle} onError={() => setError("Google Hatası")} theme="filled_black" shape="pill" width="300px" /></div>
       </div>
     </AuthLayout>
   );
@@ -257,7 +294,7 @@ function AppContent() {
   // --- TODO UYGULAMASI ---
   return (
     <div className="min-h-screen bg-gray-950 text-white font-sans selection:bg-blue-500/30 pb-20">
-      <Toast />
+      <Toast error={error} success={successMsg} />
       
       {/* HEADER */}
       <div className="bg-gray-900/50 backdrop-blur-md sticky top-0 z-30 border-b border-gray-800">
@@ -316,7 +353,7 @@ function AppContent() {
                   {t.text}
                 </span>
 
-                {/* Sil Butonu (Mobilde hep görünür yapıldı) */}
+                {/* Sil Butonu */}
                 <button 
                   onClick={(e) => deleteTodo(t._id, e)} 
                   className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
