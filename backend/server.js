@@ -15,24 +15,22 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ ŞİFRELER (Render Env Variables yoksa buradakileri kullanır)
-const MY_GMAIL = process.env.MY_GMAIL || "serdarabdulkadir044@gmail.com"; 
-const MY_APP_PASSWORD = process.env.MY_APP_PASSWORD || "rmizmqhqomgyuggz"; 
+// --- BREVO AYARLARI ---
+const MY_BREVO_EMAIL = "serdarabdulkadir044@gmail.com"; 
+const MY_BREVO_SMTP_KEY = "xsmtpsib-0fd836276c856813a017dcfa193e46152faa397a95516b4d0f2bb075090c4f60-Z4eXThMmJeitKYzJ"; // Senin verdiğin şifre
 
-// --- MAİL AYARI (GÜVENLİK DUVARI DELİCİ AYAR) ---
+// --- MAİL GÖNDERİCİ (Brevo SMTP) ---
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,              // 587 Portu Render'da daha az takılır
-    secure: false,          // 587 için false olmalı
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    secure: false, // TLS kullanır
     auth: {
-        user: MY_GMAIL,
-        pass: MY_APP_PASSWORD
+        user: MY_BREVO_EMAIL,
+        pass: MY_BREVO_SMTP_KEY
     },
     tls: {
-        ciphers: 'SSLv3',          // ⚠️ KRİTİK: Bağlantı şifrelemesini basitleştirir
-        rejectUnauthorized: false  // Sertifika hatalarını yoksay
+        rejectUnauthorized: false
     },
-    family: 4, // IPv4 Zorunlu
     logger: true,
     debug: true
 });
@@ -61,6 +59,7 @@ const Todo = mongoose.model('Todo', TodoSchema);
 
 // --- ROTALAR ---
 
+// 1. KAYIT OL
 app.post('/register', async (req, res) => {
     const { email, password } = req.body;
     console.log("Kayıt İsteği:", email);
@@ -74,14 +73,14 @@ app.post('/register', async (req, res) => {
         const vCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         try {
-            console.log("Mail sunucusuna (SSLv3) bağlanılıyor...");
+            console.log("Brevo ile mail gönderiliyor...");
             await transporter.sendMail({
-                from: MY_GMAIL,
+                from: MY_BREVO_EMAIL,
                 to: email,
-                subject: 'Hesap Doğrulama Kodu',
-                text: `Kodunuz: ${vCode}`
+                subject: 'Doğrulama Kodu',
+                text: `Merhaba,\n\nKodunuz: ${vCode}`
             });
-            console.log("✅ Mail Gitti!");
+            console.log("✅ Mail Başarıyla Gitti!");
 
             if (!user) {
                 user = new User({ email, password, verificationCode: vCode, isVerified: false });
@@ -90,21 +89,17 @@ app.post('/register', async (req, res) => {
                 user.verificationCode = vCode;
             }
             await user.save();
-            
             res.status(201).json({ message: "Kod gönderildi." });
 
         } catch (mailError) {
-            console.error("❌ MAİL HATASI:", mailError);
-            res.status(500).json({ message: "Mail sunucusuna ulaşılamadı. Lütfen tekrar deneyin." });
+            console.error("❌ Mail Hatası:", mailError);
+            res.status(500).json({ message: "Mail gönderilemedi. Lütfen tekrar deneyin." });
         }
 
-    } catch (e) {
-        console.error("Genel Hata:", e);
-        res.status(500).json({ message: "Sunucu hatası" }); 
-    }
+    } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// (Diğer rotalar aynı kalıyor, yer kazanmak için kısalttım)
+// 2. MAİL DOĞRULAMA
 app.post('/verify-email', async (req, res) => {
     const { email, code } = req.body;
     try {
@@ -115,6 +110,7 @@ app.post('/verify-email', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Hata" }); }
 });
 
+// 3. GİRİŞ YAP
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -122,9 +118,10 @@ app.post('/login', async (req, res) => {
         if (!user) return res.status(401).json({ message: "Hatalı bilgi!" });
         if (user.authType === "local" && !user.isVerified) return res.status(403).json({ message: "Mail onayı gerekli." });
         res.json({ message: "Giriş OK", user: { email: user.email } });
-    } catch (err) { res.status(500).json({ message: "Hata" }); }
+    } catch (err) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
+// 4. GOOGLE GİRİŞ
 app.post('/google-login', async (req, res) => {
     const { token } = req.body;
     try {
@@ -137,6 +134,7 @@ app.post('/google-login', async (req, res) => {
     } catch (error) { res.status(400).json({ message: "Google hatası." }); }
 });
 
+// -- ŞİFRE İŞLEMLERİ --
 app.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
@@ -144,7 +142,8 @@ app.post('/forgot-password', async (req, res) => {
         if (!user) return res.status(404).json({ message: "Kullanıcı yok!" });
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = code; await user.save();
-        await transporter.sendMail({ from: MY_GMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
+        
+        await transporter.sendMail({ from: MY_BREVO_EMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
         res.json({ message: "Kod gönderildi!" });
     } catch (error) { res.status(500).json({ message: "Mail hatası." }); }
 });
@@ -159,6 +158,7 @@ app.post('/reset-password-verify', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Hata" }); }
 });
 
+// TODO İŞLEMLERİ
 app.get('/todos', async (req, res) => {
     const { email } = req.query; if (!email) return res.json([]);
     const todos = await Todo.find({ userEmail: email }); res.json(todos);
