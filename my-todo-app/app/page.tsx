@@ -1,14 +1,16 @@
 "use client";
 import { useState, useEffect } from "react";
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 type Todo = { _id: string; text: string; completed: boolean; isOptimistic?: boolean };
 
 // Backend URL
 const API_URL = "https://todo-backend-api-zfln.onrender.com"; 
-const GOOGLE_CLIENT_ID = "845413910676-7u28570rarcg6rrjjth69a8napcusf45.apps.googleusercontent.com";
+// Backend ile uyumlu ID'yi buraya ekledik
+const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 
-// --- UI BİLEŞENLERİ (DIŞARI TAŞINDI - SORUN ÇÖZÜLDÜ) ---
+// --- UI BİLEŞENLERİ ---
 
 const EyeIcon = ({ show, onClick }: { show: boolean, onClick: () => void }) => (
   <div onClick={onClick} className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer z-10">
@@ -23,7 +25,7 @@ const EyeIcon = ({ show, onClick }: { show: boolean, onClick: () => void }) => (
 );
 
 const TrashIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
   </svg>
 );
@@ -40,7 +42,6 @@ const EmptyStateIcon = () => (
   </svg>
 );
 
-// Toast Bileşeni
 const Toast = ({ error, success }: { error: string, success: string }) => (
   (error || success) ? (
     <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-bounce-in transition-all duration-300 ${error ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}>
@@ -49,7 +50,6 @@ const Toast = ({ error, success }: { error: string, success: string }) => (
   ) : null
 );
 
-// Input Bileşeni
 const Input = ({ type, placeholder, value, onChange, icon }: any) => (
   <div className="relative mb-4">
     <input 
@@ -64,7 +64,6 @@ const Input = ({ type, placeholder, value, onChange, icon }: any) => (
   </div>
 );
 
-// Button Bileşeni
 const Button = ({ text, onClick, type = "submit", secondary = false }: any) => (
   <button 
     type={type} 
@@ -75,16 +74,13 @@ const Button = ({ text, onClick, type = "submit", secondary = false }: any) => (
   </button>
 );
 
-// AuthLayout Bileşeni
 const AuthLayout = ({ title, children, footer, error, success }: any) => (
   <div className="min-h-screen bg-gray-950 flex flex-col justify-center px-4 sm:px-6 lg:px-8 font-sans relative overflow-hidden">
     <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
         <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-blue-600/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-purple-600/20 rounded-full blur-3xl"></div>
     </div>
-
     <Toast error={error} success={success} />
-    
     <div className="sm:mx-auto sm:w-full sm:max-w-md z-10">
       <div className="bg-gray-900 py-10 px-6 shadow-2xl rounded-2xl border border-gray-800">
         <h2 className="mb-8 text-center text-3xl font-extrabold text-white tracking-tight">{title}</h2>
@@ -118,6 +114,16 @@ function AppContent() {
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  
+  // Hydration hatasını önlemek için client kontrolü
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    const animation = requestAnimationFrame(() => setEnabled(true));
+    return () => {
+      cancelAnimationFrame(animation);
+      setEnabled(false);
+    };
+  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -161,8 +167,7 @@ function AppContent() {
     } catch { setTodos(prev); setInput(optimisticTodo.text); setError("Eklenemedi!"); }
   };
 
-  const deleteTodo = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const deleteTodo = async (id: string) => {
     const prev = [...todos]; setTodos(p => p.filter(t => t._id !== id));
     try {
         const res = await fetch(`${API_URL}/todos/${id}`, { method: "DELETE" });
@@ -171,24 +176,37 @@ function AppContent() {
   };
 
   const toggleTodo = async (id: string) => {
-    const prev = [...todos]; setTodos(p => p.map(t => t._id === id ? { ...t, completed: !t.completed } : t));
+    // 1. Durumu yerelde değiştir (Optimistic)
+    const prev = [...todos]; 
+    setTodos(p => p.map(t => t._id === id ? { ...t, completed: !t.completed } : t));
     try {
+        // 2. API'ye gönder
         const res = await fetch(`${API_URL}/todos/${id}`, { method: "PUT" });
         if(!res.ok) throw new Error();
-    } catch { setTodos(prev); setError("Güncellenemedi!"); }
+    } catch { 
+        // 3. Hata varsa geri al
+        setTodos(prev); setError("Güncellenemedi!"); 
+    }
+  };
+
+  // --- KANBAN SÜRÜKLE BIRAK MANTIĞI ---
+  const onDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId) return; // Aynı kolona bırakılırsa işlem yapma
+
+    // Eğer farklı bir kolona bırakıldıysa (Todo -> Done veya tam tersi) toggleTodo çağır
+    toggleTodo(draggableId);
   };
 
   // --- AUTH ---
   const handleGoogle = async (cred: any) => {
-    console.log("Google yanıtı:", cred); // Hata ayıklama için
     try {
         const res = await fetch(`${API_URL}/google-login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: cred.credential }) });
         const data = await res.json();
         if(res.ok) { setCurrentUser(data.user.email); changeView("todo"); } else setError("Google Girişi Reddedildi");
-    } catch (err) { 
-      console.error(err);
-      setError("Bağlantı Hatası"); 
-    }
+    } catch (err) { setError("Bağlantı Hatası"); }
   };
   
   const handleAuth = async (e: React.FormEvent, type: "login" | "register") => {
@@ -291,30 +309,38 @@ function AppContent() {
     </AuthLayout>
   );
 
-  // --- TODO UYGULAMASI ---
+  // --- TODO UYGULAMASI (KANBAN BOARD) ---
+  
+  if (!enabled) {
+    return null; // Sunucu tarafında render hatasını önlemek için
+  }
+
+  const todoList = todos.filter(t => !t.completed);
+  const doneList = todos.filter(t => t.completed);
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white font-sans selection:bg-blue-500/30 pb-20">
+    <div className="min-h-screen bg-gray-950 text-white font-sans selection:bg-blue-500/30 pb-20 overflow-x-hidden">
       <Toast error={error} success={successMsg} />
       
       {/* HEADER */}
       <div className="bg-gray-900/50 backdrop-blur-md sticky top-0 z-30 border-b border-gray-800">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Yapılacaklar</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Kanban Board</h1>
             <p className="text-xs text-gray-400 truncate max-w-[150px]">{currentUser}</p>
           </div>
           <button onClick={logout} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition text-sm font-medium">Çıkış</button>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 mt-6">
+      <div className="max-w-6xl mx-auto px-4 mt-6">
         {/* INPUT ALANI */}
-        <form onSubmit={addTodo} className="relative mb-8 group">
+        <form onSubmit={addTodo} className="relative mb-8 group max-w-2xl mx-auto">
           <input 
             type="text" 
             value={input} 
             onChange={(e) => setInput(e.target.value)} 
-            placeholder="Bugün ne yapacaksın?" 
+            placeholder="Yeni bir görev kartı oluştur..." 
             className="w-full p-4 pl-5 pr-14 rounded-2xl bg-gray-900 border border-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-lg shadow-lg" 
           />
           <button type="submit" className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl transition-all shadow-md active:scale-95">
@@ -322,49 +348,96 @@ function AppContent() {
           </button>
         </form>
 
-        {/* LİSTE */}
-        <div className="space-y-3">
-          {todos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-               <EmptyStateIcon />
-               <p className="text-xl font-semibold text-gray-300">Harika gidiyorsun!</p>
-               <p className="text-gray-500 text-sm mt-1">Yapılacak listen bomboş, anın tadını çıkar.</p>
+        {/* KANBAN BOARD */}
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+            
+            {/* YAPILACAKLAR KOLONU */}
+            <div className="bg-gray-900/50 p-4 rounded-3xl border border-gray-800 flex flex-col h-fit min-h-[500px]">
+              <h3 className="text-xl font-bold mb-4 px-2 text-gray-300 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-blue-500"></span> Yapılacaklar <span className="text-sm bg-gray-800 px-2 py-0.5 rounded-full text-gray-500">{todoList.length}</span>
+              </h3>
+              
+              <Droppable droppableId="todo-list">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 space-y-3">
+                    {todoList.length === 0 && (
+                      <div className="h-32 border-2 border-dashed border-gray-800 rounded-2xl flex flex-col items-center justify-center text-gray-600">
+                        <p className="text-sm">Görev yok 🎉</p>
+                      </div>
+                    )}
+                    {todoList.map((t, index) => (
+                      <Draggable key={t._id} draggableId={t._id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`p-4 rounded-2xl bg-gray-800 border border-gray-700 shadow-sm group hover:border-blue-500/50 transition-colors
+                              ${snapshot.isDragging ? "shadow-2xl ring-2 ring-blue-500 rotate-2 z-50 bg-gray-700" : ""}
+                              ${t.isOptimistic ? "opacity-50" : "opacity-100"}
+                            `}
+                          >
+                            <div className="flex justify-between items-start gap-3">
+                              <p className="text-gray-200 text-lg leading-snug">{t.text}</p>
+                              <button onClick={() => deleteTodo(t._id)} className="text-gray-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition opacity-0 group-hover:opacity-100">
+                                <TrashIcon />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
             </div>
-          ) : (
-            todos.map((t) => (
-              <div 
-                key={t._id} 
-                onClick={() => toggleTodo(t._id)}
-                className={`group flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all duration-300 transform active:scale-[0.99] hover:shadow-lg
-                  ${t.completed 
-                    ? "bg-gray-900/30 border-gray-800 opacity-60" 
-                    : "bg-gray-900 border-gray-800 hover:border-gray-700"}
-                  ${t.isOptimistic ? "animate-pulse border-blue-500/30" : ""}
-                `}
-              >
-                {/* Checkbox Tasarımı */}
-                <div className={`relative flex-shrink-0 w-6 h-6 rounded-full border-2 transition-colors duration-300 flex items-center justify-center
-                  ${t.completed ? "border-green-500 bg-green-500" : "border-gray-600 group-hover:border-blue-500"}`}>
-                  {t.completed && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                </div>
-                
-                {/* Metin */}
-                <span className={`flex-1 text-lg font-medium break-all transition-colors duration-300 ${t.completed ? "text-gray-500 line-through" : "text-gray-100"}`}>
-                  {t.text}
-                </span>
 
-                {/* Sil Butonu */}
-                <button 
-                  onClick={(e) => deleteTodo(t._id, e)} 
-                  className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                  aria-label="Sil"
-                >
-                  <TrashIcon />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+            {/* TAMAMLANANLAR KOLONU */}
+            <div className="bg-gray-900/50 p-4 rounded-3xl border border-gray-800 flex flex-col h-fit min-h-[500px]">
+              <h3 className="text-xl font-bold mb-4 px-2 text-gray-300 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-green-500"></span> Tamamlananlar <span className="text-sm bg-gray-800 px-2 py-0.5 rounded-full text-gray-500">{doneList.length}</span>
+              </h3>
+
+              <Droppable droppableId="done-list">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 space-y-3">
+                    {doneList.length === 0 && (
+                      <div className="h-32 border-2 border-dashed border-gray-800 rounded-2xl flex flex-col items-center justify-center text-gray-600">
+                        <p className="text-sm">Henüz biten iş yok ⏳</p>
+                      </div>
+                    )}
+                    {doneList.map((t, index) => (
+                      <Draggable key={t._id} draggableId={t._id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`p-4 rounded-2xl bg-gray-800/40 border border-gray-800 shadow-sm group hover:border-green-500/50 transition-colors
+                              ${snapshot.isDragging ? "shadow-2xl ring-2 ring-green-500 rotate-2 z-50 bg-gray-800" : ""}
+                              ${t.isOptimistic ? "opacity-50" : "opacity-100"}
+                            `}
+                          >
+                            <div className="flex justify-between items-start gap-3">
+                              <p className="text-gray-500 line-through text-lg leading-snug">{t.text}</p>
+                              <button onClick={() => deleteTodo(t._id)} className="text-gray-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition opacity-0 group-hover:opacity-100">
+                                <TrashIcon />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+
+          </div>
+        </DragDropContext>
       </div>
     </div>
   );
