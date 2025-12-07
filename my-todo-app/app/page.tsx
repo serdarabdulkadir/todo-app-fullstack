@@ -4,7 +4,6 @@ import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 type Todo = { _id: string; text: string; completed: boolean; isOptimistic?: boolean };
 
-// Backend URL'in
 const API_URL = "https://todo-backend-api-zfln.onrender.com"; 
 const GOOGLE_CLIENT_ID = "845413910676-7u28570rarcg6rrjjth69a8napcusf45.apps.googleusercontent.com";
 
@@ -17,8 +16,14 @@ export default function Home() {
 }
 
 function AppContent() {
+  // GÖRÜNÜM STATE'LERİ
   const [view, setView] = useState<"login" | "register" | "todo" | "forgot-password" | "verify-email">("login");
   const [resetStep, setResetStep] = useState<1 | 2>(1);
+  
+  // YENİ EKLENEN: ŞİFRE GÖSTER/GİZLE STATE'İ
+  const [showPassword, setShowPassword] = useState(false);
+
+  // FORM DATA STATE'LERİ
   const [resetCode, setResetCode] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [timer, setTimer] = useState(0); 
@@ -31,6 +36,7 @@ function AppContent() {
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  // Timer Mantığı
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (timer > 0) { interval = setInterval(() => { setTimer((prev) => prev - 1); }, 1000); }
@@ -41,6 +47,14 @@ function AppContent() {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // View değişince formları temizleme ve şifre görünümünü kapatma
+  const changeView = (newView: typeof view) => {
+    setView(newView);
+    setError("");
+    setSuccessMsg("");
+    setShowPassword(false); // Ekran değişince şifreyi gizle
   };
 
   useEffect(() => { if (currentUser) fetchTodos(); }, [currentUser]);
@@ -54,95 +68,58 @@ function AppContent() {
     } catch (e) { console.error("Hata:", e); }
   };
 
-  // --- OPTIMISTIC UI: ADD TODO ---
+  // --- OPTIMISTIC UI FONKSİYONLARI ---
   const addTodo = async (e: React.FormEvent) => {
     e.preventDefault(); 
     if (!input.trim()) return;
 
-    // 1. GEÇİCİ VERİ OLUŞTUR (Optimistic Data)
-    const tempId = Date.now().toString(); // Geçici bir ID
-    const optimisticTodo: Todo = { 
-        _id: tempId, 
-        text: input, 
-        completed: false, 
-        isOptimistic: true // Görsel olarak belli etmek istersen diye
-    };
-
-    // 2. EKRANI HEMEN GÜNCELLE
-    const previousTodos = [...todos]; // Yedeği al
+    const tempId = Date.now().toString();
+    const optimisticTodo: Todo = { _id: tempId, text: input, completed: false, isOptimistic: true };
+    const previousTodos = [...todos]; 
     setTodos(prev => [...prev, optimisticTodo]);
-    setInput(""); // Inputu temizle
+    setInput(""); 
 
     try {
-        // 3. API İSTEĞİ
         const res = await fetch(`${API_URL}/todos`, {
             method: "POST", 
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: optimisticTodo.text, userEmail: currentUser }),
         });
-
         if (!res.ok) throw new Error("Ekleme başarısız");
-
         const realTodo = await res.json();
-
-        // 4. BAŞARILIYSA: Geçici ID'yi Gerçek ID ile değiştir
         setTodos(prev => prev.map(t => t._id === tempId ? realTodo : t));
-
     } catch (err) {
-        // 5. HATA VARSA: Yedeği geri yükle (Rollback)
-        console.error("Ekleme hatası, geri alınıyor...");
         setTodos(previousTodos);
-        setInput(optimisticTodo.text); // Kullanıcı tekrar deneyebilsin diye yazıyı geri koy
+        setInput(optimisticTodo.text); 
         setError("Görev eklenemedi.");
     }
   };
 
-  // --- OPTIMISTIC UI: DELETE TODO ---
   const deleteTodo = async (id: string) => {
-    // 1. EKRANDAN HEMEN SİL
-    const previousTodos = [...todos]; // Yedeği al
+    const previousTodos = [...todos]; 
     setTodos(prev => prev.filter(t => t._id !== id));
-
     try {
-        // 2. API İSTEĞİ
         const res = await fetch(`${API_URL}/todos/${id}`, { method: "DELETE" });
         if (!res.ok) throw new Error("Silme başarısız");
-        
-        // Başarılıysa zaten sildik, ekstra bir şey yapmaya gerek yok.
     } catch (err) {
-        // 3. HATA VARSA: Geri getir (Rollback)
-        console.error("Silme hatası, geri alınıyor...");
         setTodos(previousTodos);
         setError("Silme işlemi başarısız.");
     }
   };
 
-  // --- OPTIMISTIC UI: TOGGLE TODO ---
   const toggleTodo = async (id: string) => {
-    // 1. EKRANDA HEMEN İŞARETLE
-    const previousTodos = [...todos]; // Yedeği al
-    
-    setTodos(prev => prev.map(t => {
-        if (t._id === id) {
-            return { ...t, completed: !t.completed };
-        }
-        return t;
-    }));
-
+    const previousTodos = [...todos]; 
+    setTodos(prev => prev.map(t => t._id === id ? { ...t, completed: !t.completed } : t));
     try {
-        // 2. API İSTEĞİ
         const res = await fetch(`${API_URL}/todos/${id}`, { method: "PUT" });
         if (!res.ok) throw new Error("Güncelleme başarısız");
-        
-        // Başarılıysa zaten güncelledik.
     } catch (err) {
-        // 3. HATA VARSA: Eski haline döndür (Rollback)
-        console.error("Toggle hatası, geri alınıyor...");
         setTodos(previousTodos);
         setError("Güncelleme başarısız.");
     }
   };
 
+  // --- AUTH FONKSİYONLARI ---
   const handleGoogleSuccess = async (credentialResponse: any) => {
     try {
         const res = await fetch(`${API_URL}/google-login`, {
@@ -150,7 +127,7 @@ function AppContent() {
             body: JSON.stringify({ token: credentialResponse.credential }),
         });
         const data = await res.json();
-        if (res.ok) { setCurrentUser(data.user.email); setView("todo"); } 
+        if (res.ok) { setCurrentUser(data.user.email); changeView("todo"); } 
         else { setError("Google girişi başarısız oldu."); }
     } catch (err) { setError("Bağlantı hatası."); }
   };
@@ -162,10 +139,9 @@ function AppContent() {
     try {
       const res = await fetch(`${API_URL}/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }), });
       const data = await res.json();
-      
       if (res.ok) { 
           setSuccessMsg(data.message); 
-          setTimeout(() => { setView("verify-email"); setSuccessMsg(""); }, 1500); 
+          setTimeout(() => { changeView("verify-email"); setSuccessMsg(""); }, 1500); 
       } else { setError(data.message); }
     } catch (err) { setError("Hata oluştu."); }
   };
@@ -180,10 +156,9 @@ function AppContent() {
             body: JSON.stringify({ email, code: verificationCode }),
         });
         const data = await res.json();
-
         if (res.ok) {
             setSuccessMsg(data.message);
-            setTimeout(() => { setView("login"); setVerificationCode(""); setSuccessMsg(""); }, 2000);
+            setTimeout(() => { changeView("login"); setVerificationCode(""); setSuccessMsg(""); }, 2000);
         } else { setError(data.message); }
     } catch (err) { setError("Sunucu hatası."); }
   };
@@ -194,7 +169,7 @@ function AppContent() {
     try {
       const res = await fetch(`${API_URL}/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }), });
       const data = await res.json();
-      if (res.ok) { setCurrentUser(data.user.email); setView("todo"); } else { setError(data.message); }
+      if (res.ok) { setCurrentUser(data.user.email); changeView("todo"); } else { setError(data.message); }
     } catch (err) { setError("Hata"); }
   };
 
@@ -219,13 +194,36 @@ function AppContent() {
             body: JSON.stringify({ email, code: resetCode, newPassword }),
         });
         const data = await res.json();
-        if (res.ok) { setSuccessMsg(data.message); setTimeout(() => { setView("login"); setResetStep(1); setPassword(""); setResetCode(""); setTimer(0); }, 2000); } else { setError(data.message); }
+        if (res.ok) { setSuccessMsg(data.message); setTimeout(() => { changeView("login"); setResetStep(1); setPassword(""); setResetCode(""); setTimer(0); }, 2000); } else { setError(data.message); }
     } catch (err) { setError("Sunucu hatası."); }
   };
 
-  const logout = () => { setView("login"); setTodos([]); setCurrentUser(""); setEmail(""); setPassword(""); };
+  const logout = () => { changeView("login"); setTodos([]); setCurrentUser(""); setEmail(""); setPassword(""); };
 
-  // EKRANLAR
+  // --- IKON BİLEŞENİ (Kod tekrarını önlemek için) ---
+  const PasswordToggleIcon = () => (
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white focus:outline-none transition-colors"
+    >
+      {showPassword ? (
+        // Eye Off Icon (Gizle)
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+        </svg>
+      ) : (
+        // Eye Icon (Göster)
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      )}
+    </button>
+  );
+
+  // --- EKRANLAR ---
+
   if (view === "verify-email") {
     return (
         <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
@@ -238,7 +236,7 @@ function AppContent() {
             <input type="text" placeholder="Doğrulama Kodu" value={verificationCode} onChange={e => setVerificationCode(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none text-center text-xl tracking-widest" required />
             <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">Doğrula ve Giriş Yap</button>
           </form>
-          <p className="mt-6 text-center text-gray-400 text-sm"><button onClick={() => setView("login")} className="text-blue-400 hover:text-blue-300 font-semibold">← İptal</button></p>
+          <p className="mt-6 text-center text-gray-400 text-sm"><button onClick={() => changeView("login")} className="text-blue-400 hover:text-blue-300 font-semibold">← İptal</button></p>
         </div>
       </div>
     );
@@ -261,12 +259,25 @@ function AppContent() {
               <form onSubmit={handleVerifyReset} className="space-y-4">
                   <p className="text-gray-400 text-center mb-4 text-sm">Gelen 6 haneli kodu girin.</p>
                   <input type="text" placeholder="Kod (Örn: 123456)" value={resetCode} onChange={e => setResetCode(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none text-center text-xl tracking-widest" required />
-                  <input type="password" placeholder="Yeni Şifre" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none" required />
+                  
+                  {/* YENİ ŞİFRE ALANI - İKONLU */}
+                  <div className="relative">
+                    <input 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="Yeni Şifre" 
+                        value={newPassword} 
+                        onChange={e => setNewPassword(e.target.value)} 
+                        className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none pr-10" 
+                        required 
+                    />
+                    <PasswordToggleIcon />
+                  </div>
+
                   <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">Değiştir</button>
                   <button type="button" onClick={handleSendCode} disabled={timer > 0} className={`w-full text-sm py-2 rounded border border-gray-600 transition ${timer > 0 ? "text-gray-500 cursor-not-allowed" : "text-blue-400 hover:text-blue-300"}`}>{timer > 0 ? `Bekle: ${formatTime(timer)}` : "Tekrar Gönder"}</button>
               </form>
           )}
-          <p className="mt-6 text-center text-gray-400 text-sm"><button onClick={() => { setView("login"); setTimer(0); }} className="text-blue-400 hover:text-blue-300 font-semibold">← İptal</button></p>
+          <p className="mt-6 text-center text-gray-400 text-sm"><button onClick={() => { changeView("login"); setTimer(0); }} className="text-blue-400 hover:text-blue-300 font-semibold">← İptal</button></p>
         </div>
       </div>
     );
@@ -281,15 +292,28 @@ function AppContent() {
           {successMsg && <div className="bg-green-500/20 text-green-200 p-3 rounded mb-4 text-sm text-center">{successMsg}</div>}
           <form onSubmit={handleLogin} className="space-y-4">
             <input type="email" placeholder="E-posta" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none" required />
-            <input type="password" placeholder="Şifre" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none" required />
-            <div className="flex justify-end"><button type="button" onClick={() => { setView("forgot-password"); setError(""); }} className="text-sm text-gray-400 hover:text-white transition">Şifremi Unuttum?</button></div>
+            
+            {/* ŞİFRE ALANI - İKONLU */}
+            <div className="relative">
+                <input 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="Şifre" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none pr-10" 
+                    required 
+                />
+                <PasswordToggleIcon />
+            </div>
+
+            <div className="flex justify-end"><button type="button" onClick={() => { changeView("forgot-password"); setError(""); }} className="text-sm text-gray-400 hover:text-white transition">Şifremi Unuttum?</button></div>
             <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">Giriş Yap</button>
           </form>
           <div className="mt-6 border-t border-gray-700 pt-6">
             <p className="text-center text-gray-400 text-sm mb-4">veya şununla devam et</p>
             <div className="flex justify-center"><GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError("Google Girişi Başarısız")} theme="filled_black" shape="pill" text="signin_with" width="100%" /></div>
           </div>
-          <p className="mt-6 text-center text-gray-400 text-sm">Hesabın yok mu? <button onClick={() => setView("register")} className="text-blue-400 font-semibold ml-1">Kayıt Ol</button></p>
+          <p className="mt-6 text-center text-gray-400 text-sm">Hesabın yok mu? <button onClick={() => changeView("register")} className="text-blue-400 font-semibold ml-1">Kayıt Ol</button></p>
         </div>
       </div>
     );
@@ -303,20 +327,33 @@ function AppContent() {
           {error && <div className="bg-red-500/20 text-red-200 p-3 rounded mb-4 text-sm text-center">{error}</div>}
           <form onSubmit={handleRegister} className="space-y-4">
             <input type="email" placeholder="E-posta (Hotmail, Outlook, Gmail...)" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none" required />
-            <input type="password" placeholder="Şifre (Min 6 karakter)" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none" required />
+            
+            {/* ŞİFRE ALANI - İKONLU */}
+            <div className="relative">
+                <input 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="Şifre (Min 6 karakter)" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none pr-10" 
+                    required 
+                />
+                <PasswordToggleIcon />
+            </div>
+
             <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">Hesap Oluştur</button>
           </form>
           <div className="mt-6 border-t border-gray-700 pt-6">
             <p className="text-center text-gray-400 text-sm mb-4">veya şununla kayıt ol</p>
             <div className="flex justify-center"><GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError("Google Girişi Başarısız")} theme="filled_black" shape="pill" text="signup_with" width="100%" /></div>
           </div>
-          <p className="mt-6 text-center text-gray-400 text-sm">Zaten üye misin? <button onClick={() => { setView("login"); setError(""); setSuccessMsg(""); }} className="text-blue-400 font-semibold ml-1">Giriş Yap</button></p>
+          <p className="mt-6 text-center text-gray-400 text-sm">Zaten üye misin? <button onClick={() => { changeView("login"); setError(""); setSuccessMsg(""); }} className="text-blue-400 font-semibold ml-1">Giriş Yap</button></p>
         </div>
       </div>
     );
   }
 
-  // TODO LISTESİ EKRANI
+  // TODO LISTESİ EKRANI (Aynı kaldı)
   return (
     <div className="min-h-screen bg-gray-900 text-white flex justify-center p-4 font-sans">
       <div className="w-full max-w-2xl mt-10">
