@@ -7,7 +7,7 @@ const { OAuth2Client } = require('google-auth-library');
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// CORS
+// CORS - Her yerden gelen isteği kabul et
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
@@ -17,25 +17,23 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ BURAYA HOTMAIL/OUTLOOK MAİLİNİ VE ŞİFRENİ YAZ
-const MY_EMAIL = "abdulcoder@hotmail.com"; // Buraya Hotmail adresini yaz
-const MY_PASSWORD = "CoderGenc.1017";       // Buraya normal Hotmail giriş şifreni yaz
+// ⚠️ SENİN GMAIL BİLGİLERİN
+const MY_GMAIL = "serdarabdulkadir044@gmail.com"; 
+const MY_APP_PASSWORD = "zoltrwkykzqyohya"; 
 
-// --- OUTLOOK / HOTMAIL AYARI (Render Dostu) ---
+// --- GMAIL AYARI (Service Modu + IPv4) ---
 const transporter = nodemailer.createTransport({
-    host: "smtp-mail.outlook.com", // Microsoft Sunucusu
-    port: 587,
-    secure: false, // TLS kullanır
+    service: 'gmail', // Otomatik ayar modu
     auth: {
-        user: MY_EMAIL,
-        pass: MY_PASSWORD
+        user: MY_GMAIL,
+        pass: MY_APP_PASSWORD
     },
     tls: {
-        ciphers: 'SSLv3', // Bağlantı sorunlarını çözer
         rejectUnauthorized: false
     },
-    debug: true, // Hata varsa görelim
-    logger: true
+    family: 4, // ⚠️ Render için IPv4 zorunluluğu (Timeout çözer)
+    logger: true,
+    debug: true
 });
 
 mongoose.connect(MONGO_URI)
@@ -78,12 +76,12 @@ app.post('/register', async (req, res) => {
         const vCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         try {
-            console.log("Hotmail ile bağlanılıyor...");
+            console.log("Gmail servisine bağlanılıyor...");
             await transporter.sendMail({
-                from: MY_EMAIL, // Gönderen senin Hotmail adresin
-                to: email,      // Alıcı kullanıcının girdiği mail (Gmail, Hotmail fark etmez)
-                subject: 'Doğrulama Kodu',
-                text: `Merhaba,\n\nKodunuz: ${vCode}`
+                from: MY_GMAIL,
+                to: email,
+                subject: 'Hesap Doğrulama Kodu',
+                text: `Merhaba,\n\nHesabını doğrulamak için kodun: ${vCode}`
             });
             console.log("✅ Mail Gitti!");
 
@@ -95,11 +93,11 @@ app.post('/register', async (req, res) => {
             }
             await user.save();
             
-            res.status(201).json({ message: "Kod gönderildi." });
+            res.status(201).json({ message: "Doğrulama kodu gönderildi." });
 
         } catch (mailError) {
-            console.error("❌ Mail Hatası:", mailError);
-            res.status(500).json({ message: "Mail sunucusuna bağlanılamadı." });
+            console.error("❌ MAİL HATASI:", mailError);
+            res.status(500).json({ message: "Mail gönderilemedi: Sunucu yanıt vermiyor." });
         }
 
     } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
@@ -151,8 +149,7 @@ app.post('/forgot-password', async (req, res) => {
         if (!user) return res.status(404).json({ message: "Kullanıcı yok!" });
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = code; await user.save();
-        
-        await transporter.sendMail({ from: MY_EMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
+        await transporter.sendMail({ from: MY_GMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
         res.json({ message: "Kod gönderildi!" });
     } catch (error) { res.status(500).json({ message: "Mail hatası." }); }
 });
