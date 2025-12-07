@@ -19,7 +19,7 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // ⚠️ BURAYA HOTMAIL/OUTLOOK MAİLİNİ VE ŞİFRENİ YAZ
 const MY_EMAIL = "abdulcoder@hotmail.com"; // Buraya Hotmail adresini yaz
-const MY_PASSWORD = "AbdulCoder.1017";       // Buraya normal Hotmail giriş şifreni yaz
+const MY_PASSWORD = "CoderGenc.1017";       // Buraya normal Hotmail giriş şifreni yaz
 
 // --- OUTLOOK / HOTMAIL AYARI (Render Dostu) ---
 const transporter = nodemailer.createTransport({
