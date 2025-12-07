@@ -4,6 +4,7 @@ import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 type Todo = { _id: string; text: string; completed: boolean; isOptimistic?: boolean };
 
+// Backend URL
 const API_URL = "https://todo-backend-api-zfln.onrender.com"; 
 const GOOGLE_CLIENT_ID = "845413910676-7u28570rarcg6rrjjth69a8napcusf45.apps.googleusercontent.com";
 
@@ -15,15 +16,39 @@ export default function Home() {
   );
 }
 
-function AppContent() {
-  // GÖRÜNÜM STATE'LERİ
-  const [view, setView] = useState<"login" | "register" | "todo" | "forgot-password" | "verify-email">("login");
-  const [resetStep, setResetStep] = useState<1 | 2>(1);
-  
-  // YENİ EKLENEN: ŞİFRE GÖSTER/GİZLE STATE'İ
-  const [showPassword, setShowPassword] = useState(false);
+// --- İKONLAR (SVG) ---
+const EyeIcon = ({ show }: { show: boolean }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400">
+    {show ? (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+    ) : (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+    )}
+  </svg>
+);
 
-  // FORM DATA STATE'LERİ
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+);
+
+const EmptyStateIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-24 h-24 text-gray-700 mb-4 opacity-50">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+  </svg>
+);
+
+function AppContent() {
+  const [view, setView] = useState<"login" | "register" | "todo" | "forgot-password" | "verify-email">("login");
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetStep, setResetStep] = useState<1 | 2>(1);
   const [resetCode, setResetCode] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [timer, setTimer] = useState(0); 
@@ -36,25 +61,21 @@ function AppContent() {
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Timer Mantığı
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (timer > 0) { interval = setInterval(() => { setTimer((prev) => prev - 1); }, 1000); }
     return () => clearInterval(interval);
   }, [timer]);
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
+  useEffect(() => { 
+    if(error || successMsg) {
+      const t = setTimeout(() => { setError(""); setSuccessMsg(""); }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [error, successMsg]);
 
-  // View değişince formları temizleme ve şifre görünümünü kapatma
   const changeView = (newView: typeof view) => {
-    setView(newView);
-    setError("");
-    setSuccessMsg("");
-    setShowPassword(false); // Ekran değişince şifreyi gizle
+    setView(newView); setError(""); setSuccessMsg(""); setShowPassword(false);
   };
 
   useEffect(() => { if (currentUser) fetchTodos(); }, [currentUser]);
@@ -65,322 +86,247 @@ function AppContent() {
       const res = await fetch(`${API_URL}/todos?email=${currentUser}`);
       const data = await res.json();
       setTodos(data);
-    } catch (e) { console.error("Hata:", e); }
+    } catch (e) { console.error(e); }
   };
 
-  // --- OPTIMISTIC UI FONKSİYONLARI ---
+  // --- CRUD & OPTIMISTIC UI ---
   const addTodo = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    if (!input.trim()) return;
-
+    e.preventDefault(); if (!input.trim()) return;
     const tempId = Date.now().toString();
     const optimisticTodo: Todo = { _id: tempId, text: input, completed: false, isOptimistic: true };
-    const previousTodos = [...todos]; 
-    setTodos(prev => [...prev, optimisticTodo]);
-    setInput(""); 
-
+    const prev = [...todos]; setTodos(p => [optimisticTodo, ...p]); setInput("");
     try {
-        const res = await fetch(`${API_URL}/todos`, {
-            method: "POST", 
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: optimisticTodo.text, userEmail: currentUser }),
-        });
-        if (!res.ok) throw new Error("Ekleme başarısız");
-        const realTodo = await res.json();
-        setTodos(prev => prev.map(t => t._id === tempId ? realTodo : t));
-    } catch (err) {
-        setTodos(previousTodos);
-        setInput(optimisticTodo.text); 
-        setError("Görev eklenemedi.");
-    }
+        const res = await fetch(`${API_URL}/todos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: optimisticTodo.text, userEmail: currentUser }) });
+        if(!res.ok) throw new Error();
+        const real = await res.json();
+        setTodos(p => p.map(t => t._id === tempId ? real : t));
+    } catch { setTodos(prev); setInput(optimisticTodo.text); setError("Eklenemedi!"); }
   };
 
-  const deleteTodo = async (id: string) => {
-    const previousTodos = [...todos]; 
-    setTodos(prev => prev.filter(t => t._id !== id));
+  const deleteTodo = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Satıra tıklamayı engelle
+    const prev = [...todos]; setTodos(p => p.filter(t => t._id !== id));
     try {
         const res = await fetch(`${API_URL}/todos/${id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error("Silme başarısız");
-    } catch (err) {
-        setTodos(previousTodos);
-        setError("Silme işlemi başarısız.");
-    }
+        if(!res.ok) throw new Error();
+    } catch { setTodos(prev); setError("Silinemedi!"); }
   };
 
   const toggleTodo = async (id: string) => {
-    const previousTodos = [...todos]; 
-    setTodos(prev => prev.map(t => t._id === id ? { ...t, completed: !t.completed } : t));
+    const prev = [...todos]; setTodos(p => p.map(t => t._id === id ? { ...t, completed: !t.completed } : t));
     try {
         const res = await fetch(`${API_URL}/todos/${id}`, { method: "PUT" });
-        if (!res.ok) throw new Error("Güncelleme başarısız");
-    } catch (err) {
-        setTodos(previousTodos);
-        setError("Güncelleme başarısız.");
-    }
+        if(!res.ok) throw new Error();
+    } catch { setTodos(prev); setError("Güncellenemedi!"); }
   };
 
-  // --- AUTH FONKSİYONLARI ---
-  const handleGoogleSuccess = async (credentialResponse: any) => {
+  // --- AUTH ---
+  const handleGoogle = async (cred: any) => {
     try {
-        const res = await fetch(`${API_URL}/google-login`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: credentialResponse.credential }),
-        });
+        const res = await fetch(`${API_URL}/google-login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: cred.credential }) });
         const data = await res.json();
-        if (res.ok) { setCurrentUser(data.user.email); changeView("todo"); } 
-        else { setError("Google girişi başarısız oldu."); }
-    } catch (err) { setError("Bağlantı hatası."); }
+        if(res.ok) { setCurrentUser(data.user.email); changeView("todo"); } else setError("Google Hatası");
+    } catch { setError("Bağlantı Hatası"); }
   };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    setError(""); setSuccessMsg("");
-    if(password.length < 6) { setError("En az 6 karakter!"); return; }
+  const handleAuth = async (e: React.FormEvent, type: "login" | "register") => {
+    e.preventDefault(); if(type === "register" && password.length < 6) { setError("Şifre çok kısa!"); return; }
     try {
-      const res = await fetch(`${API_URL}/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }), });
+      const res = await fetch(`${API_URL}/${type}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
       const data = await res.json();
-      if (res.ok) { 
-          setSuccessMsg(data.message); 
-          setTimeout(() => { changeView("verify-email"); setSuccessMsg(""); }, 1500); 
-      } else { setError(data.message); }
-    } catch (err) { setError("Hata oluştu."); }
+      if(res.ok) {
+        if(type === "register") { setSuccessMsg(data.message); setTimeout(() => changeView("verify-email"), 1500); }
+        else { setCurrentUser(data.user.email); changeView("todo"); }
+      } else setError(data.message);
+    } catch { setError("Sunucu Hatası"); }
   };
-
-  const handleVerifyEmail = async (e: React.FormEvent) => {
+  const verifyEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(""); setSuccessMsg("");
     try {
-        const res = await fetch(`${API_URL}/verify-email`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, code: verificationCode }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-            setSuccessMsg(data.message);
-            setTimeout(() => { changeView("login"); setVerificationCode(""); setSuccessMsg(""); }, 2000);
-        } else { setError(data.message); }
-    } catch (err) { setError("Sunucu hatası."); }
+        const res = await fetch(`${API_URL}/verify-email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, code: verificationCode }) });
+        if(res.ok) { setSuccessMsg("Doğrulandı!"); setTimeout(() => { changeView("login"); setVerificationCode(""); }, 1500); } 
+        else setError("Hatalı Kod");
+    } catch { setError("Hata"); }
   };
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const forgotPass = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     try {
-      const res = await fetch(`${API_URL}/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }), });
-      const data = await res.json();
-      if (res.ok) { setCurrentUser(data.user.email); changeView("todo"); } else { setError(data.message); }
-    } catch (err) { setError("Hata"); }
+        const res = await fetch(`${API_URL}/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+        if(res.ok) { setSuccessMsg("Kod Gönderildi"); setResetStep(2); setTimer(120); } else setError("Hata");
+    } catch { setError("Hata"); }
   };
-
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault(); if (timer > 0) return;
-    setError(""); setSuccessMsg("");
+  const resetPass = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-        const res = await fetch(`${API_URL}/forgot-password`, {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
-        });
-        const data = await res.json();
-        if (res.ok) { setSuccessMsg(data.message); setResetStep(2); setTimer(120); setNewPassword(""); } else { setError(data.message); }
-    } catch (err) { setError("Sunucu hatası."); }
-  };
-
-  const handleVerifyReset = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(""); setSuccessMsg("");
-    if(newPassword.length < 6) { setError("En az 6 karakter!"); return; }
-    try {
-        const res = await fetch(`${API_URL}/reset-password-verify`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, code: resetCode, newPassword }),
-        });
-        const data = await res.json();
-        if (res.ok) { setSuccessMsg(data.message); setTimeout(() => { changeView("login"); setResetStep(1); setPassword(""); setResetCode(""); setTimer(0); }, 2000); } else { setError(data.message); }
-    } catch (err) { setError("Sunucu hatası."); }
+        const res = await fetch(`${API_URL}/reset-password-verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, code: resetCode, newPassword }) });
+        if(res.ok) { setSuccessMsg("Şifre Değişti!"); setTimeout(() => { changeView("login"); setResetStep(1); }, 2000); } else setError("Hata");
+    } catch { setError("Hata"); }
   };
 
   const logout = () => { changeView("login"); setTodos([]); setCurrentUser(""); setEmail(""); setPassword(""); };
 
-  // --- IKON BİLEŞENİ (Kod tekrarını önlemek için) ---
-  const PasswordToggleIcon = () => (
-    <button
-      type="button"
-      onClick={() => setShowPassword(!showPassword)}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white focus:outline-none transition-colors"
-    >
-      {showPassword ? (
-        // Eye Off Icon (Gizle)
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-        </svg>
-      ) : (
-        // Eye Icon (Göster)
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      )}
+  // --- UI BİLEŞENLERİ ---
+  const Toast = () => (
+    (error || successMsg) ? (
+      <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-bounce-in transition-all duration-300 ${error ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}>
+        <span className="font-medium text-sm">{error || successMsg}</span>
+      </div>
+    ) : null
+  );
+
+  const AuthLayout = ({ title, children, footer }: any) => (
+    <div className="min-h-screen bg-gray-950 flex flex-col justify-center px-4 sm:px-6 lg:px-8 font-sans relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+          <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-blue-600/20 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-purple-600/20 rounded-full blur-3xl"></div>
+      </div>
+
+      <Toast />
+      <div className="sm:mx-auto sm:w-full sm:max-w-md z-10">
+        <div className="bg-gray-900 py-10 px-6 shadow-2xl rounded-2xl border border-gray-800">
+          <h2 className="mb-8 text-center text-3xl font-extrabold text-white tracking-tight">{title}</h2>
+          {children}
+        </div>
+        {footer}
+      </div>
+    </div>
+  );
+
+  const Input = ({ type, placeholder, value, onChange, icon }: any) => (
+    <div className="relative mb-4">
+      <input type={type} placeholder={placeholder} value={value} onChange={onChange} className="appearance-none block w-full px-4 py-3.5 pl-4 bg-gray-800 border border-gray-700 rounded-xl placeholder-gray-500 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-base" required />
+      {icon && <div className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer">{icon}</div>}
+    </div>
+  );
+
+  const Button = ({ text, onClick, type = "submit", secondary = false }: any) => (
+    <button type={type} onClick={onClick} className={`w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-base font-bold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all ${secondary ? "bg-gray-700 hover:bg-gray-600" : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"}`}>
+      {text}
     </button>
   );
 
-  // --- EKRANLAR ---
+  // --- SAYFALAR ---
+  if (view === "verify-email") return (
+    <AuthLayout title="Doğrulama">
+      <form onSubmit={verifyEmail}>
+        <p className="text-gray-400 text-center mb-6 text-sm">Kod <b>{email}</b> adresine gönderildi.</p>
+        <Input type="text" placeholder="Gelen Kodu Giriniz" value={verificationCode} onChange={(e:any) => setVerificationCode(e.target.value)} />
+        <Button text="Hesabı Doğrula" />
+      </form>
+      <div className="text-center mt-4"><button onClick={() => changeView("login")} className="text-sm text-gray-500 hover:text-white">İptal Et</button></div>
+    </AuthLayout>
+  );
 
-  if (view === "verify-email") {
-    return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
-        <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
-          <h2 className="text-2xl font-bold text-white mb-2 text-center">Hesabı Doğrula</h2>
-          <p className="text-gray-400 text-center mb-6 text-sm">{email} adresine gelen kodu gir.</p>
-          {error && <div className="bg-red-500/20 text-red-200 p-3 rounded mb-4 text-sm text-center">{error}</div>}
-          {successMsg && <div className="bg-green-500/20 text-green-200 p-3 rounded mb-4 text-sm text-center">{successMsg}</div>}
-          <form onSubmit={handleVerifyEmail} className="space-y-4">
-            <input type="text" placeholder="Doğrulama Kodu" value={verificationCode} onChange={e => setVerificationCode(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none text-center text-xl tracking-widest" required />
-            <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">Doğrula ve Giriş Yap</button>
-          </form>
-          <p className="mt-6 text-center text-gray-400 text-sm"><button onClick={() => changeView("login")} className="text-blue-400 hover:text-blue-300 font-semibold">← İptal</button></p>
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "forgot-password") {
-    return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
-        <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
-          <h2 className="text-2xl font-bold text-white mb-2 text-center">Şifre Sıfırla</h2>
-          {error && <div className="bg-red-500/20 text-red-200 p-3 rounded mb-4 text-sm text-center">{error}</div>}
-          {successMsg && <div className="bg-green-500/20 text-green-200 p-3 rounded mb-4 text-sm text-center">{successMsg}</div>}
-          {resetStep === 1 ? (
-              <form onSubmit={handleSendCode} className="space-y-4">
-                  <p className="text-gray-400 text-center mb-4 text-sm">Doğrulama kodu almak için e-postanızı girin.</p>
-                  <input type="email" placeholder="E-posta" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none" required />
-                  <button type="submit" disabled={timer > 0} className={`w-full font-bold py-3 rounded-lg transition ${timer > 0 ? "bg-gray-600 cursor-not-allowed text-gray-300" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>{timer > 0 ? `Tekrar Gönder (${formatTime(timer)})` : "Kod Gönder"}</button>
-              </form>
-          ) : (
-              <form onSubmit={handleVerifyReset} className="space-y-4">
-                  <p className="text-gray-400 text-center mb-4 text-sm">Gelen 6 haneli kodu girin.</p>
-                  <input type="text" placeholder="Kod (Örn: 123456)" value={resetCode} onChange={e => setResetCode(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none text-center text-xl tracking-widest" required />
-                  
-                  {/* YENİ ŞİFRE ALANI - İKONLU */}
-                  <div className="relative">
-                    <input 
-                        type={showPassword ? "text" : "password"} 
-                        placeholder="Yeni Şifre" 
-                        value={newPassword} 
-                        onChange={e => setNewPassword(e.target.value)} 
-                        className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none pr-10" 
-                        required 
-                    />
-                    <PasswordToggleIcon />
-                  </div>
-
-                  <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">Değiştir</button>
-                  <button type="button" onClick={handleSendCode} disabled={timer > 0} className={`w-full text-sm py-2 rounded border border-gray-600 transition ${timer > 0 ? "text-gray-500 cursor-not-allowed" : "text-blue-400 hover:text-blue-300"}`}>{timer > 0 ? `Bekle: ${formatTime(timer)}` : "Tekrar Gönder"}</button>
-              </form>
-          )}
-          <p className="mt-6 text-center text-gray-400 text-sm"><button onClick={() => { changeView("login"); setTimer(0); }} className="text-blue-400 hover:text-blue-300 font-semibold">← İptal</button></p>
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "login") {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
-        <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
-          <h2 className="text-3xl font-bold text-white mb-2 text-center">Giriş Yap</h2>
-          {error && <div className="bg-red-500/20 text-red-200 p-3 rounded mb-4 text-sm text-center">{error}</div>}
-          {successMsg && <div className="bg-green-500/20 text-green-200 p-3 rounded mb-4 text-sm text-center">{successMsg}</div>}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input type="email" placeholder="E-posta" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none" required />
-            
-            {/* ŞİFRE ALANI - İKONLU */}
-            <div className="relative">
-                <input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="Şifre" 
-                    value={password} 
-                    onChange={e => setPassword(e.target.value)} 
-                    className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none pr-10" 
-                    required 
-                />
-                <PasswordToggleIcon />
-            </div>
-
-            <div className="flex justify-end"><button type="button" onClick={() => { changeView("forgot-password"); setError(""); }} className="text-sm text-gray-400 hover:text-white transition">Şifremi Unuttum?</button></div>
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">Giriş Yap</button>
-          </form>
-          <div className="mt-6 border-t border-gray-700 pt-6">
-            <p className="text-center text-gray-400 text-sm mb-4">veya şununla devam et</p>
-            <div className="flex justify-center"><GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError("Google Girişi Başarısız")} theme="filled_black" shape="pill" text="signin_with" width="100%" /></div>
-          </div>
-          <p className="mt-6 text-center text-gray-400 text-sm">Hesabın yok mu? <button onClick={() => changeView("register")} className="text-blue-400 font-semibold ml-1">Kayıt Ol</button></p>
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "register") {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
-        <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
-          <h2 className="text-3xl font-bold text-white mb-2 text-center">Kayıt Ol</h2>
-          {error && <div className="bg-red-500/20 text-red-200 p-3 rounded mb-4 text-sm text-center">{error}</div>}
-          <form onSubmit={handleRegister} className="space-y-4">
-            <input type="email" placeholder="E-posta (Hotmail, Outlook, Gmail...)" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none" required />
-            
-            {/* ŞİFRE ALANI - İKONLU */}
-            <div className="relative">
-                <input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="Şifre (Min 6 karakter)" 
-                    value={password} 
-                    onChange={e => setPassword(e.target.value)} 
-                    className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none pr-10" 
-                    required 
-                />
-                <PasswordToggleIcon />
-            </div>
-
-            <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">Hesap Oluştur</button>
-          </form>
-          <div className="mt-6 border-t border-gray-700 pt-6">
-            <p className="text-center text-gray-400 text-sm mb-4">veya şununla kayıt ol</p>
-            <div className="flex justify-center"><GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError("Google Girişi Başarısız")} theme="filled_black" shape="pill" text="signup_with" width="100%" /></div>
-          </div>
-          <p className="mt-6 text-center text-gray-400 text-sm">Zaten üye misin? <button onClick={() => { changeView("login"); setError(""); setSuccessMsg(""); }} className="text-blue-400 font-semibold ml-1">Giriş Yap</button></p>
-        </div>
-      </div>
-    );
-  }
-
-  // TODO LISTESİ EKRANI (Aynı kaldı)
-  return (
-    <div className="min-h-screen bg-gray-900 text-white flex justify-center p-4 font-sans">
-      <div className="w-full max-w-2xl mt-10">
-        <div className="flex justify-between items-center mb-8 bg-gray-800 p-4 rounded-xl border border-gray-700">
-          <div><h1 className="text-xl font-bold">Yapılacaklar</h1><p className="text-xs text-gray-400 mt-1">{currentUser}</p></div>
-          <button onClick={logout} className="text-red-400 hover:bg-red-500 hover:text-white px-4 py-2 rounded-lg text-sm border border-red-500/20 transition">Çıkış</button>
-        </div>
-
-        {error && <div className="mb-4 text-red-400 text-sm text-center">{error}</div>}
-
-        <form onSubmit={addTodo} className="flex gap-3 mb-8">
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Bugün ne yapacaksın?" className="flex-1 p-4 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 outline-none text-lg" />
-          <button type="submit" className="bg-blue-600 hover:bg-blue-700 px-8 rounded-xl font-bold text-white transition">Ekle</button>
+  if (view === "forgot-password") return (
+    <AuthLayout title="Şifre Sıfırla">
+      {resetStep === 1 ? (
+        <form onSubmit={forgotPass}>
+          <Input type="email" placeholder="E-posta Adresiniz" value={email} onChange={(e:any) => setEmail(e.target.value)} />
+          <Button text={timer > 0 ? `Bekleyiniz (${timer})` : "Kod Gönder"} secondary={timer > 0} />
         </form>
+      ) : (
+        <form onSubmit={resetPass}>
+           <Input type="text" placeholder="Onay Kodu" value={resetCode} onChange={(e:any) => setResetCode(e.target.value)} />
+           <Input type={showPassword ? "text" : "password"} placeholder="Yeni Şifre" value={newPassword} onChange={(e:any) => setNewPassword(e.target.value)} icon={<div onClick={() => setShowPassword(!showPassword)}><EyeIcon show={showPassword}/></div>} />
+           <Button text="Şifreyi Güncelle" />
+        </form>
+      )}
+      <div className="text-center mt-4"><button onClick={() => { changeView("login"); setTimer(0); }} className="text-sm text-gray-500 hover:text-white">Giriş Ekranına Dön</button></div>
+    </AuthLayout>
+  );
+
+  if (view === "login" || view === "register") return (
+    <AuthLayout title={view === "login" ? "Tekrar Hoşgeldin" : "Hesap Oluştur"} footer={
+      <p className="mt-6 text-center text-sm text-gray-400">
+        {view === "login" ? "Hesabın yok mu?" : "Zaten üye misin?"} <button onClick={() => changeView(view === "login" ? "register" : "login")} className="font-semibold text-blue-500 hover:text-blue-400 ml-1">{view === "login" ? "Kayıt Ol" : "Giriş Yap"}</button>
+      </p>
+    }>
+      <form onSubmit={(e) => handleAuth(e, view)} className="space-y-4">
+        <Input type="email" placeholder="E-posta" value={email} onChange={(e:any) => setEmail(e.target.value)} />
+        <Input type={showPassword ? "text" : "password"} placeholder="Şifre" value={password} onChange={(e:any) => setPassword(e.target.value)} icon={<div onClick={() => setShowPassword(!showPassword)}><EyeIcon show={showPassword}/></div>} />
+        {view === "login" && <div className="flex justify-end"><button type="button" onClick={() => changeView("forgot-password")} className="text-xs text-gray-400 hover:text-white">Şifremi Unuttum?</button></div>}
+        <Button text={view === "login" ? "Giriş Yap" : "Kayıt Ol"} />
+      </form>
+      <div className="mt-6">
+        <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700"></div></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-gray-900 text-gray-500">veya</span></div></div>
+        <div className="mt-6"><GoogleLogin onSuccess={handleGoogle} onError={() => setError("Google Hatası")} theme="filled_black" shape="pill" width="100%" /></div>
+      </div>
+    </AuthLayout>
+  );
+
+  // --- TODO UYGULAMASI ---
+  return (
+    <div className="min-h-screen bg-gray-950 text-white font-sans selection:bg-blue-500/30 pb-20">
+      <Toast />
+      
+      {/* HEADER */}
+      <div className="bg-gray-900/50 backdrop-blur-md sticky top-0 z-30 border-b border-gray-800">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Yapılacaklar</h1>
+            <p className="text-xs text-gray-400 truncate max-w-[150px]">{currentUser}</p>
+          </div>
+          <button onClick={logout} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition text-sm font-medium">Çıkış</button>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 mt-6">
+        {/* INPUT ALANI */}
+        <form onSubmit={addTodo} className="relative mb-8 group">
+          <input 
+            type="text" 
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            placeholder="Bugün ne yapacaksın?" 
+            className="w-full p-4 pl-5 pr-14 rounded-2xl bg-gray-900 border border-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-lg shadow-lg" 
+          />
+          <button type="submit" className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl transition-all shadow-md active:scale-95">
+            <PlusIcon />
+          </button>
+        </form>
+
+        {/* LİSTE */}
         <div className="space-y-3">
-          {todos.map((t) => (
-            <div key={t._id} className={`flex justify-between items-center p-4 rounded-xl border transition 
-                ${t.completed ? "bg-gray-800/40 border-gray-800 opacity-60" : "bg-gray-800 border-gray-700"}
-                ${t.isOptimistic ? "animate-pulse border-blue-500/50" : ""} 
-            `}>
-              <div onClick={() => toggleTodo(t._id)} className="flex items-center gap-4 cursor-pointer flex-1">
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${t.completed ? "border-green-500 bg-green-500" : "border-gray-500"}`}>{t.completed && "✓"}</div>
-                <span className={`text-lg transition ${t.completed ? "line-through text-gray-500" : "text-gray-100"}`}>{t.text}</span>
-              </div>
-              <button onClick={() => deleteTodo(t._id)} className="text-gray-500 hover:text-red-400 p-2">Sil</button>
+          {todos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+               <EmptyStateIcon />
+               <p className="text-xl font-semibold text-gray-300">Harika gidiyorsun!</p>
+               <p className="text-gray-500 text-sm mt-1">Yapılacak listen bomboş, anın tadını çıkar.</p>
             </div>
-          ))}
+          ) : (
+            todos.map((t) => (
+              <div 
+                key={t._id} 
+                onClick={() => toggleTodo(t._id)}
+                className={`group flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all duration-300 transform active:scale-[0.99] hover:shadow-lg
+                  ${t.completed 
+                    ? "bg-gray-900/30 border-gray-800 opacity-60" 
+                    : "bg-gray-900 border-gray-800 hover:border-gray-700"}
+                  ${t.isOptimistic ? "animate-pulse border-blue-500/30" : ""}
+                `}
+              >
+                {/* Checkbox Tasarımı */}
+                <div className={`relative flex-shrink-0 w-6 h-6 rounded-full border-2 transition-colors duration-300 flex items-center justify-center
+                  ${t.completed ? "border-green-500 bg-green-500" : "border-gray-600 group-hover:border-blue-500"}`}>
+                  {t.completed && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                </div>
+                
+                {/* Metin */}
+                <span className={`flex-1 text-lg font-medium break-all transition-colors duration-300 ${t.completed ? "text-gray-500 line-through" : "text-gray-100"}`}>
+                  {t.text}
+                </span>
+
+                {/* Sil Butonu (Mobilde hep görünür yapıldı) */}
+                <button 
+                  onClick={(e) => deleteTodo(t._id, e)} 
+                  className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                  aria-label="Sil"
+                >
+                  <TrashIcon />
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
