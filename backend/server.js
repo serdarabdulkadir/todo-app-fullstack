@@ -15,18 +15,18 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ DEĞİŞİKLİK: Şifreleri koddan değil, Render Environment'tan çekiyoruz
+// ⚠️ DEĞİŞİKLİK: Şifreyi Render Environment'tan çekiyoruz (KODDA ŞİFRE YOK)
 const MY_BREVO_EMAIL = process.env.MY_BREVO_EMAIL || "serdarabdulkadir044@gmail.com"; 
 const MY_BREVO_SMTP_KEY = process.env.MY_BREVO_SMTP_KEY; 
 
-// --- BREVO (PORT 2525) ---
+// --- BREVO (PORT 2525 - BAĞLANTI BAŞARILI OLAN AYAR) ---
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
-    port: 2525,           // Bu port Render'da çalışıyor
+    port: 2525,           // Bu port çalışıyor, elleme!
     secure: false,        
     auth: {
         user: MY_BREVO_EMAIL,
-        pass: MY_BREVO_SMTP_KEY // Şifreyi gizli kasadan alacak
+        pass: MY_BREVO_SMTP_KEY // Şifreyi Render'dan alacak
     },
     tls: {
         rejectUnauthorized: false
@@ -104,7 +104,7 @@ app.post('/register', async (req, res) => {
     } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// (Diğer rotalar aynı, yer kazanmak için kısalttım)
+// (Diğer rotalar aynı, yer kazanmak için kısalttım - aynen kalacak)
 app.post('/verify-email', async (req, res) => {
     const { email, code } = req.body;
     try {
