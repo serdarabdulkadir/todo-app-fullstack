@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 type Todo = { _id: string; text: string; completed: boolean; };
-const API_URL = "http://localhost:5001"; 
+const API_URL = "https://todo-backend-api-zfln.onrender.com"; 
 const GOOGLE_CLIENT_ID = "845413910676-7u28570rarcg6rrjjth69a8napcusf45.apps.googleusercontent.com";
 
 export default function Home() {
