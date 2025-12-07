@@ -5,43 +5,37 @@ const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 
 const app = express();
-const PORT = process.env.PORT || 5001; // Render'ın kendi portunu kullanmasına izin ver
+const PORT = process.env.PORT || 5001;
 
-// CORS ayarı
+// CORS
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 // --- AYARLAR ---
 const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@todo1.shf92iz.mongodb.net/?appName=Todo1";
 
-// Google Client ID
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ ŞİFRELERİ RENDER'DAN AL (Güvenlik İçin En İyisi)
-// Eğer Render Environment Variables ayarlamadıysan, buraya elle yazabilirsin ama önerilmez.
-const MY_GMAIL = process.env.MY_GMAIL || "serdarabdulkadir044@gmail.com"; 
-const MY_APP_PASSWORD = process.env.MY_APP_PASSWORD || "zoltrwkykzqyohya"; 
+// ⚠️ BURAYA HOTMAIL/OUTLOOK MAİLİNİ VE ŞİFRENİ YAZ
+const MY_EMAIL = "abdulcoder@hotmail.com"; // Buraya Hotmail adresini yaz
+const MY_PASSWORD = "AbdulCoder.1017";       // Buraya normal Hotmail giriş şifreni yaz
 
-// --- GÜÇLENDİRİLMİŞ MAİL AYARI ---
+// --- OUTLOOK / HOTMAIL AYARI (Render Dostu) ---
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, 
+    host: "smtp-mail.outlook.com", // Microsoft Sunucusu
+    port: 587,
+    secure: false, // TLS kullanır
     auth: {
-        user: MY_GMAIL,
-        pass: MY_APP_PASSWORD
+        user: MY_EMAIL,
+        pass: MY_PASSWORD
     },
     tls: {
+        ciphers: 'SSLv3', // Bağlantı sorunlarını çözer
         rejectUnauthorized: false
     },
-    family: 4,            // IPv4 Zorunlu
-    // ⚠️ DEĞİŞİKLİK BURADA: Süreleri 60 saniyeye çıkardık
-    connectionTimeout: 60000, 
-    greetingTimeout: 30000,   
-    socketTimeout: 60000,     
-    logger: true,
-    debug: true
+    debug: true, // Hata varsa görelim
+    logger: true
 });
 
 mongoose.connect(MONGO_URI)
@@ -83,16 +77,15 @@ app.post('/register', async (req, res) => {
 
         const vCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Mail Gönderme
         try {
-            console.log("Mail sunucusuna bağlanılıyor (60sn beklenebilir)...");
+            console.log("Hotmail ile bağlanılıyor...");
             await transporter.sendMail({
-                from: MY_GMAIL,
-                to: email,
-                subject: 'Hesap Doğrulama Kodu',
-                text: `Merhaba,\n\nHesabını doğrulamak için kodun: ${vCode}`
+                from: MY_EMAIL, // Gönderen senin Hotmail adresin
+                to: email,      // Alıcı kullanıcının girdiği mail (Gmail, Hotmail fark etmez)
+                subject: 'Doğrulama Kodu',
+                text: `Merhaba,\n\nKodunuz: ${vCode}`
             });
-            console.log("✅ Mail Başarıyla Gitti!");
+            console.log("✅ Mail Gitti!");
 
             if (!user) {
                 user = new User({ email, password, verificationCode: vCode, isVerified: false });
@@ -102,17 +95,14 @@ app.post('/register', async (req, res) => {
             }
             await user.save();
             
-            res.status(201).json({ message: "Doğrulama kodu gönderildi." });
+            res.status(201).json({ message: "Kod gönderildi." });
 
         } catch (mailError) {
-            console.error("❌ MAİL HATASI:", mailError);
-            res.status(500).json({ message: "Mail sunucusu yanıt vermedi (Timeout). Lütfen tekrar deneyin." });
+            console.error("❌ Mail Hatası:", mailError);
+            res.status(500).json({ message: "Mail sunucusuna bağlanılamadı." });
         }
 
-    } catch (e) {
-        console.error("Genel Hata:", e);
-        res.status(500).json({ message: "Sunucu hatası" }); 
-    }
+    } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
 // 2. MAİL DOĞRULAMA
@@ -148,14 +138,12 @@ app.post('/google-login', async (req, res) => {
         if (!user) {
             user = new User({ email, password: "", authType: "google", isVerified: true });
             await user.save();
-        } else if (!user.isVerified) {
-            user.isVerified = true; await user.save();
-        }
+        } else if (!user.isVerified) { user.isVerified = true; await user.save(); }
         res.json({ message: "Google Girişi Başarılı", user: { email: user.email } });
     } catch (error) { res.status(400).json({ message: "Google hatası." }); }
 });
 
-// -- DİĞERLERİ --
+// -- ŞİFRE İŞLEMLERİ --
 app.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
@@ -163,14 +151,14 @@ app.post('/forgot-password', async (req, res) => {
         if (!user) return res.status(404).json({ message: "Kullanıcı yok!" });
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = code; await user.save();
-        await transporter.sendMail({ from: MY_GMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
+        
+        await transporter.sendMail({ from: MY_EMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
         res.json({ message: "Kod gönderildi!" });
-    } catch (error) { res.status(500).json({ message: "Hata" }); }
+    } catch (error) { res.status(500).json({ message: "Mail hatası." }); }
 });
 
 app.post('/reset-password-verify', async (req, res) => {
     const { email, code, newPassword } = req.body;
-    if (newPassword.length < 6) return res.status(400).json({ message: "Min 6 karakter!" });
     try {
         const user = await User.findOne({ email });
         if (!user || user.resetCode !== code) return res.status(400).json({ message: "Hatalı kod!" });
@@ -179,6 +167,7 @@ app.post('/reset-password-verify', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Hata" }); }
 });
 
+// TODO İŞLEMLERİ
 app.get('/todos', async (req, res) => {
     const { email } = req.query; if (!email) return res.json([]);
     const todos = await Todo.find({ userEmail: email }); res.json(todos);
