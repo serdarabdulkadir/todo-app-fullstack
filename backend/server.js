@@ -15,16 +15,16 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ SENİN VERDİĞİN BİLGİLER
+// ⚠️ BURAYI DOLDUR:
 const MY_BREVO_EMAIL = "serdarabdulkadir044@gmail.com"; 
-const MY_BREVO_SMTP_KEY = "xsmtpsib-0fd836276c856813a017dcfa193e46152faa397a95516b4d0f2bb075090c4f60-8vfJtHT5ZzTpenDE";
+// 👇 YENİ ALDIĞIN ŞİFREYİ BURAYA YAPIŞTIR 👇
+const MY_BREVO_SMTP_KEY = "xsmtpsib-0fd836276c856813a017dcfa193e46152faa397a95516b4d0f2bb075090c4f60-8vfJtHT5ZzTpenDE"; 
 
-// --- BREVO (PORT 2525) ---
-// Render bazen 587'yi engeller ama 2525 açıktır.
+// --- BREVO (PORT 2525 - ÇALIŞAN AYAR) ---
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
-    port: 2525,           // ⚠️ DEĞİŞTİ: 2525 Portu kullanıyoruz
-    secure: false,        // 2525 için false
+    port: 2525,           // Bu port Render'da çalışıyor!
+    secure: false,        
     auth: {
         user: MY_BREVO_EMAIL,
         pass: MY_BREVO_SMTP_KEY
@@ -94,14 +94,13 @@ app.post('/register', async (req, res) => {
 
         } catch (mailError) {
             console.error("❌ Mail Hatası:", mailError);
-            // Hatanın detayını logluyoruz
             res.status(500).json({ message: "Mail gönderilemedi: " + mailError.message });
         }
 
     } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// (Diğer rotalar aynı, yer kaplamasın diye kısalttım)
+// (Diğer kodlar aynı, yer kaplamasın diye kısalttım - aynen kalacak)
 app.post('/verify-email', async (req, res) => {
     const { email, code } = req.body;
     try {
