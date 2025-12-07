@@ -15,14 +15,14 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ DEĞİŞİKLİK: Şifreyi Render Environment'tan çekiyoruz (KODDA ŞİFRE YOK)
+// ⚠️ DEĞİŞİKLİK: Şifreleri Render'dan çekiyoruz (Kodda şifre yok!)
 const MY_BREVO_EMAIL = process.env.MY_BREVO_EMAIL || "serdarabdulkadir044@gmail.com"; 
 const MY_BREVO_SMTP_KEY = process.env.MY_BREVO_SMTP_KEY; 
 
-// --- BREVO (PORT 2525 - BAĞLANTI BAŞARILI OLAN AYAR) ---
+// --- BREVO (PORT 2525) ---
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
-    port: 2525,           // Bu port çalışıyor, elleme!
+    port: 2525,           // Bu port Render'da çalışıyor
     secure: false,        
     auth: {
         user: MY_BREVO_EMAIL,
@@ -74,7 +74,7 @@ app.post('/register', async (req, res) => {
         try {
             console.log("Brevo (2525) ile mail gönderiliyor...");
             
-            // Şifre kontrolü (Loglara güvenlik için basmıyoruz)
+            // Şifre kontrolü
             if (!MY_BREVO_SMTP_KEY) {
                 throw new Error("SMTP Key bulunamadı! Render Environment ayarlarını kontrol et.");
             }
@@ -104,7 +104,7 @@ app.post('/register', async (req, res) => {
     } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// (Diğer rotalar aynı, yer kazanmak için kısalttım - aynen kalacak)
+// (Diğer rotalar aynı, yer kazanmak için kısalttım)
 app.post('/verify-email', async (req, res) => {
     const { email, code } = req.body;
     try {
