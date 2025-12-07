@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 
 const app = express();
@@ -15,25 +14,41 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ DEĞİŞİKLİK: Şifreleri Render'dan çekiyoruz (Kodda şifre yok!)
+// ⚠️ RENDER'DAN GELECEK BİLGİLER
 const MY_BREVO_EMAIL = process.env.MY_BREVO_EMAIL || "serdarabdulkadir044@gmail.com"; 
-const MY_BREVO_SMTP_KEY = process.env.MY_BREVO_SMTP_KEY; 
+const MY_BREVO_API_KEY = process.env.MY_BREVO_API_KEY; 
 
-// --- BREVO (PORT 2525) ---
-const transporter = nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 2525,           // Bu port Render'da çalışıyor
-    secure: false,        
-    auth: {
-        user: MY_BREVO_EMAIL,
-        pass: MY_BREVO_SMTP_KEY // Şifreyi Render'dan alacak
-    },
-    tls: {
-        rejectUnauthorized: false
-    },
-    logger: true,
-    debug: true
-});
+// --- YENİ MAİL FONKSİYONU (HTTP API - ENGEL TANIMAZ) ---
+async function sendEmailViaApi(to, subject, textContent) {
+    if (!MY_BREVO_API_KEY) throw new Error("API Anahtarı eksik! Render ayarlarını kontrol et.");
+
+    const url = "https://api.brevo.com/v3/smtp/email";
+    const options = {
+        method: "POST",
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "api-key": MY_BREVO_API_KEY // Render'daki anahtarı kullanır
+        },
+        body: JSON.stringify({
+            sender: { email: MY_BREVO_EMAIL },
+            to: [{ email: to }],
+            subject: subject,
+            textContent: textContent
+        })
+    };
+
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Brevo API Hatası:", errorData);
+        throw new Error("Mail gönderilemedi. Hata kodu: " + response.status);
+    }
+    
+    console.log("✅ Mail API ile başarıyla gönderildi!");
+    return await response.json();
+}
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ MongoDB Bağlı!"))
@@ -72,21 +87,10 @@ app.post('/register', async (req, res) => {
         const vCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         try {
-            console.log("Brevo (2525) ile mail gönderiliyor...");
+            console.log("Brevo API ile mail deneniyor...");
+            // YENİ FONKSİYONU KULLANIYORUZ
+            await sendEmailViaApi(email, 'Hesap Doğrulama Kodu', `Merhaba,\n\nKodunuz: ${vCode}`);
             
-            // Şifre kontrolü
-            if (!MY_BREVO_SMTP_KEY) {
-                throw new Error("SMTP Key bulunamadı! Render Environment ayarlarını kontrol et.");
-            }
-
-            await transporter.sendMail({
-                from: MY_BREVO_EMAIL, 
-                to: email,            
-                subject: 'Doğrulama Kodu',
-                text: `Merhaba,\n\nKodunuz: ${vCode}`
-            });
-            console.log("✅ Mail Başarıyla Gitti!");
-
             if (!user) {
                 user = new User({ email, password, verificationCode: vCode, isVerified: false });
             } else {
@@ -97,14 +101,13 @@ app.post('/register', async (req, res) => {
             res.status(201).json({ message: "Kod gönderildi." });
 
         } catch (mailError) {
-            console.error("❌ Mail Hatası:", mailError);
-            res.status(500).json({ message: "Mail hatası: " + mailError.message });
+            console.error("Mail Hatası:", mailError);
+            res.status(500).json({ message: "Mail servisi hatası. Lütfen daha sonra deneyin." });
         }
 
     } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// (Diğer rotalar aynı, yer kazanmak için kısalttım)
 app.post('/verify-email', async (req, res) => {
     const { email, code } = req.body;
     try {
@@ -144,7 +147,8 @@ app.post('/forgot-password', async (req, res) => {
         if (!user) return res.status(404).json({ message: "Kullanıcı yok!" });
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = code; await user.save();
-        await transporter.sendMail({ from: MY_BREVO_EMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
+        
+        await sendEmailViaApi(email, 'Şifre Sıfırlama Kodu', `Kodunuz: ${code}`);
         res.json({ message: "Kod gönderildi!" });
     } catch (error) { res.status(500).json({ message: "Mail hatası." }); }
 });
