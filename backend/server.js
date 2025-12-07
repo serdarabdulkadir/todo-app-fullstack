@@ -18,8 +18,8 @@ const GOOGLE_CLIENT_ID = "845413910676-7u28570rarcg6rrjjth69a8napcusf45.apps.goo
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Mail Ayarları
-const MY_GMAIL = "codergenc044@gmail.com"; 
-const MY_APP_PASSWORD = "dwgflrohbwpciowo"; 
+const MY_GMAIL = "serdarabdulkadir044@gmail.com"; 
+const MY_APP_PASSWORD = "tjdhhxilmvxixrqz"; 
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
