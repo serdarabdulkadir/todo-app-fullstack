@@ -19,12 +19,22 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Mail Ayarları
 const MY_GMAIL = "serdarabdulkadir044@gmail.com"; 
-const MY_APP_PASSWORD = "tjdhhxilmvxixrqz"; 
+const MY_APP_PASSWORD = "zoltrwkykzqyohya"; 
 
+// --- DÜZELTİLEN KISIM BURASI (Port 587 Ayarı) ---
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: MY_GMAIL, pass: MY_APP_PASSWORD }
+    host: 'smtp.gmail.com',  // Gmail sunucusu
+    port: 587,               // 587 En güvenilir porttur
+    secure: false,           // 587 için false olmalı (STARTTLS kullanır)
+    auth: {
+        user: MY_GMAIL,
+        pass: MY_APP_PASSWORD
+    },
+    tls: {
+        rejectUnauthorized: false // Bazen sertifika hatası verirse bunu yoksayması için
+    }
 });
+// ------------------------------------------------
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ MongoDB Bağlı!"))
@@ -34,9 +44,9 @@ mongoose.connect(MONGO_URI)
 const UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: false },
-    resetCode: { type: String, default: "" },     // Şifre sıfırlama kodu
-    verificationCode: { type: String, default: "" }, // Kayıt doğrulama kodu (YENİ)
-    isVerified: { type: Boolean, default: false },   // Hesap onaylı mı? (YENİ)
+    resetCode: { type: String, default: "" },
+    verificationCode: { type: String, default: "" },
+    isVerified: { type: Boolean, default: false },
     authType: { type: String, default: "local" } 
 });
 const User = mongoose.model('User', UserSchema);
@@ -50,119 +60,95 @@ const Todo = mongoose.model('Todo', TodoSchema);
 
 // --- ROTALAR ---
 
-// 1. KAYIT OL (Doğrulama Kodu Gönderir)
+// 1. KAYIT OL
 app.post('/register', async (req, res) => {
     const { email, password } = req.body;
     if (password.length < 6) return res.status(400).json({ message: "Min 6 karakter!" });
 
     try {
         let user = await User.findOne({ email });
-
-        // Eğer kullanıcı varsa ve zaten onaylıysa hata ver
         if (user && user.isVerified) {
             return res.status(400).json({ message: "Bu mail zaten kayıtlı." });
         }
 
-        // 6 Haneli Kod Üret
         const vCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-        if (!user) {
-            // Yeni kullanıcı oluştur (Onaysız)
-            user = new User({ email, password, verificationCode: vCode, isVerified: false });
-        } else {
-            // Kullanıcı var ama onaysız ise şifreyi ve kodu güncelle
-            user.password = password;
-            user.verificationCode = vCode;
-        }
-
-        await user.save();
-
-        // Mail Gönder
         try {
+            // Önce Maili Dene
             await transporter.sendMail({
                 from: MY_GMAIL,
                 to: email,
                 subject: 'Hesap Doğrulama Kodu',
                 text: `Merhaba,\n\nHesabını doğrulamak için kodun: ${vCode}`
             });
+
+            // Mail gittiyse kaydet
+            if (!user) {
+                user = new User({ email, password, verificationCode: vCode, isVerified: false });
+            } else {
+                user.password = password;
+                user.verificationCode = vCode;
+            }
+            await user.save();
             res.status(201).json({ message: "Doğrulama kodu mail adresine gönderildi." });
+
         } catch (mailError) {
-            console.error(mailError);
-            res.status(500).json({ message: "Mail gönderilemedi. Geçerli bir mail adresi girin." });
+            console.error("Mail Hatası:", mailError);
+            res.status(500).json({ message: "Bu e-posta adresine ulaşılamıyor veya sunucu yoğun." });
         }
 
     } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// 2. KAYIT DOĞRULAMA (YENİ ROTA)
+// 2. MAİL DOĞRULAMA
 app.post('/verify-email', async (req, res) => {
     const { email, code } = req.body;
     try {
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ message: "Kullanıcı bulunamadı." });
-
-        if (user.verificationCode !== code) {
-            return res.status(400).json({ message: "Hatalı kod!" });
-        }
-
-        user.isVerified = true;       // Hesabı onayla
-        user.verificationCode = "";   // Kodu temizle
-        await user.save();
-
-        res.json({ message: "Hesap başarıyla doğrulandı! Giriş yapabilirsin." });
+        if (user.verificationCode !== code) return res.status(400).json({ message: "Hatalı kod!" });
+        user.isVerified = true; user.verificationCode = ""; await user.save();
+        res.json({ message: "Hesap başarıyla doğrulandı!" });
     } catch (error) { res.status(500).json({ message: "Hata oluştu." }); }
 });
 
-// 3. GİRİŞ YAP (Onay Kontrolü Eklendi)
+// 3. GİRİŞ YAP
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const user = await User.findOne({ email, password });
-        
-        if (!user) {
-            return res.status(401).json({ message: "Hatalı e-posta veya şifre!" });
-        }
-
-        // EĞER MAİL DOĞRULANMAMIŞSA GİRİŞE İZİN VERME
-        if (user.authType === "local" && !user.isVerified) {
-            return res.status(403).json({ message: "Lütfen önce mail adresinizi doğrulayın." });
-        }
-
+        if (!user) return res.status(401).json({ message: "Hatalı bilgi!" });
+        if (user.authType === "local" && !user.isVerified) return res.status(403).json({ message: "Önce mailini doğrula." });
         res.json({ message: "Giriş OK", user: { email: user.email } });
     } catch (err) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// 4. GOOGLE GİRİŞ (Google zaten onaylı olduğu için direkt verify ediyoruz)
+// 4. GOOGLE GİRİŞ
 app.post('/google-login', async (req, res) => {
     const { token } = req.body;
     try {
         const ticket = await googleClient.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
         const { email } = ticket.getPayload();
         let user = await User.findOne({ email });
-        
         if (!user) {
-            // Google ile gelenler otomatik onaylıdır
             user = new User({ email, password: "", authType: "google", isVerified: true });
             await user.save();
         } else if (!user.isVerified) {
-            // Eğer daha önce elle kayıt olup onaylamadıysa, Google ile girince onaylayalım
-            user.isVerified = true;
-            await user.save();
+            user.isVerified = true; await user.save();
         }
-        
         res.json({ message: "Google Girişi Başarılı", user: { email: user.email } });
     } catch (error) { res.status(400).json({ message: "Google hatası." }); }
 });
 
-// -- DİĞER ROTALAR (Aynı) --
+// -- DİĞERLERİ --
 app.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
         const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ message: "Kullanıcı bulunamadı!" });
+        if (!user) return res.status(404).json({ message: "Kullanıcı yok!" });
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = code; await user.save();
-        await transporter.sendMail({ from: MY_GMAIL, to: email, subject: 'Şifre Sıfırlama Kodu', text: `Kodunuz: ${code}` });
+        await transporter.sendMail({ from: MY_GMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
         res.json({ message: "Kod gönderildi!" });
     } catch (error) { res.status(500).json({ message: "Hata" }); }
 });
