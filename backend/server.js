@@ -9,16 +9,13 @@ const PORT = process.env.PORT || 5001;
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// --- AYARLAR ---
 const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@todo1.shf92iz.mongodb.net/?appName=Todo1";
 const GOOGLE_CLIENT_ID = "845413910676-7u28570rarcg6rrjjth69a8napcusf45.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ RENDER'DAN GELECEK BİLGİLER
-const MY_BREVO_EMAIL = process.env.MY_BREVO_EMAIL || "serdarabdulkadir044@gmail.com"; 
-const MY_BREVO_API_KEY = process.env.MY_BREVO_API_KEY; 
+const MY_BREVO_EMAIL = process.env.MY_BREVO_EMAIL || "serdarabdulkadir044@gmail.com";
+const MY_BREVO_API_KEY = process.env.MY_BREVO_API_KEY;
 
-// --- YENİ MAİL FONKSİYONU (HTTP API - ENGEL TANIMAZ) ---
 async function sendEmailViaApi(to, subject, textContent) {
     if (!MY_BREVO_API_KEY) throw new Error("API Anahtarı eksik! Render ayarlarını kontrol et.");
 
@@ -28,7 +25,7 @@ async function sendEmailViaApi(to, subject, textContent) {
         headers: {
             "accept": "application/json",
             "content-type": "application/json",
-            "api-key": MY_BREVO_API_KEY // Render'daki anahtarı kullanır
+            "api-key": MY_BREVO_API_KEY
         },
         body: JSON.stringify({
             sender: { email: MY_BREVO_EMAIL },
@@ -54,7 +51,6 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ MongoDB Bağlı!"))
     .catch((err) => console.error("❌ Hata:", err));
 
-// --- ŞEMALAR ---
 const UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: false },
@@ -72,8 +68,6 @@ const TodoSchema = new mongoose.Schema({
 });
 const Todo = mongoose.model('Todo', TodoSchema);
 
-// --- ROTALAR ---
-
 app.post('/register', async (req, res) => {
     const { email, password } = req.body;
     console.log("Kayıt İsteği:", email);
@@ -88,7 +82,6 @@ app.post('/register', async (req, res) => {
 
         try {
             console.log("Brevo API ile mail deneniyor...");
-            // YENİ FONKSİYONU KULLANIYORUZ
             await sendEmailViaApi(email, 'Hesap Doğrulama Kodu', `Merhaba,\n\nKodunuz: ${vCode}`);
             
             if (!user) {
