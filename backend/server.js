@@ -7,34 +7,37 @@ const { OAuth2Client } = require('google-auth-library');
 const app = express();
 const PORT = 5001;
 
-app.use(cors());
+// CORS ayarı (Tüm kaynaklara izin ver)
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// --- AYARLAR ---
+// --- GÜNCELLENEN AYARLAR ---
 const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@todo1.shf92iz.mongodb.net/?appName=Todo1";
 
-// Google Client ID
+// YENİ Client ID
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// Mail Ayarları
+// YENİ Mail Bilgileri
 const MY_GMAIL = "serdarabdulkadir044@gmail.com"; 
 const MY_APP_PASSWORD = "zoltrwkykzqyohya"; 
 
-// --- DÜZELTİLEN KISIM BURASI (Port 587 Ayarı) ---
+// --- MAİL GÖNDERİCİ (Timeout Çözümü Dahil) ---
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',  // Gmail sunucusu
-    port: 587,               // 587 En güvenilir porttur
-    secure: false,           // 587 için false olmalı (STARTTLS kullanır)
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // TLS kullanıyoruz
     auth: {
         user: MY_GMAIL,
         pass: MY_APP_PASSWORD
     },
     tls: {
-        rejectUnauthorized: false // Bazen sertifika hatası verirse bunu yoksayması için
-    }
+        rejectUnauthorized: false
+    },
+    family: 4,    // ⚠️ KRİTİK AYAR: Render'da IPv4 zorunlu (Timeout'u çözer)
+    logger: true, // Logları aç
+    debug: true   // Hata ayıklamayı aç
 });
-// ------------------------------------------------
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ MongoDB Bağlı!"))
@@ -60,9 +63,11 @@ const Todo = mongoose.model('Todo', TodoSchema);
 
 // --- ROTALAR ---
 
-// 1. KAYIT OL
+// 1. KAYIT OL (Mail Kontrollü)
 app.post('/register', async (req, res) => {
     const { email, password } = req.body;
+    console.log("Kayıt İsteği:", email);
+
     if (password.length < 6) return res.status(400).json({ message: "Min 6 karakter!" });
 
     try {
@@ -73,16 +78,18 @@ app.post('/register', async (req, res) => {
 
         const vCode = Math.floor(100000 + Math.random() * 900000).toString();
 
+        // Mail Gönderme Denemesi
         try {
-            // Önce Maili Dene
+            console.log("Mail sunucusuna bağlanılıyor...");
             await transporter.sendMail({
                 from: MY_GMAIL,
                 to: email,
                 subject: 'Hesap Doğrulama Kodu',
                 text: `Merhaba,\n\nHesabını doğrulamak için kodun: ${vCode}`
             });
+            console.log("✅ Mail Başarıyla Gitti!");
 
-            // Mail gittiyse kaydet
+            // Mail gittiyse veritabanına yaz
             if (!user) {
                 user = new User({ email, password, verificationCode: vCode, isVerified: false });
             } else {
@@ -90,14 +97,18 @@ app.post('/register', async (req, res) => {
                 user.verificationCode = vCode;
             }
             await user.save();
-            res.status(201).json({ message: "Doğrulama kodu mail adresine gönderildi." });
+            
+            res.status(201).json({ message: "Doğrulama kodu gönderildi." });
 
         } catch (mailError) {
-            console.error("Mail Hatası:", mailError);
-            res.status(500).json({ message: "Bu e-posta adresine ulaşılamıyor veya sunucu yoğun." });
+            console.error("❌ MAİL HATASI:", mailError);
+            res.status(500).json({ message: "Mail sunucusuna bağlanılamadı. Lütfen tekrar deneyin." });
         }
 
-    } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
+    } catch (e) {
+        console.error("Genel Hata:", e);
+        res.status(500).json({ message: "Sunucu hatası" }); 
+    }
 });
 
 // 2. MAİL DOĞRULAMA
@@ -108,7 +119,7 @@ app.post('/verify-email', async (req, res) => {
         if (!user) return res.status(400).json({ message: "Kullanıcı bulunamadı." });
         if (user.verificationCode !== code) return res.status(400).json({ message: "Hatalı kod!" });
         user.isVerified = true; user.verificationCode = ""; await user.save();
-        res.json({ message: "Hesap başarıyla doğrulandı!" });
+        res.json({ message: "Hesap doğrulandı!" });
     } catch (error) { res.status(500).json({ message: "Hata oluştu." }); }
 });
 
@@ -140,7 +151,7 @@ app.post('/google-login', async (req, res) => {
     } catch (error) { res.status(400).json({ message: "Google hatası." }); }
 });
 
-// -- DİĞERLERİ --
+// -- ŞİFRE İŞLEMLERİ --
 app.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
@@ -148,9 +159,13 @@ app.post('/forgot-password', async (req, res) => {
         if (!user) return res.status(404).json({ message: "Kullanıcı yok!" });
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = code; await user.save();
+        
         await transporter.sendMail({ from: MY_GMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
         res.json({ message: "Kod gönderildi!" });
-    } catch (error) { res.status(500).json({ message: "Hata" }); }
+    } catch (error) { 
+        console.error("Şifre Mail Hatası:", error);
+        res.status(500).json({ message: "Mail gönderilemedi." }); 
+    }
 });
 
 app.post('/reset-password-verify', async (req, res) => {
@@ -164,6 +179,7 @@ app.post('/reset-password-verify', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Hata" }); }
 });
 
+// -- TODO İŞLEMLERİ --
 app.get('/todos', async (req, res) => {
     const { email } = req.query; if (!email) return res.json([]);
     const todos = await Todo.find({ userEmail: email }); res.json(todos);

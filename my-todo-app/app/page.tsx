@@ -3,8 +3,12 @@ import { useState, useEffect } from "react";
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 type Todo = { _id: string; text: string; completed: boolean; };
+
+// ⚠️ BURASI ÖNEMLİ: Kendi Render linkin (Değiştirme, önceki doğruydu)
 const API_URL = "https://todo-backend-api-zfln.onrender.com"; 
-const GOOGLE_CLIENT_ID = "845413910676-7u28570rarcg6rrjjth69a8napcusf45.apps.googleusercontent.com";
+
+// YENİ CLIENT ID (Backend ile aynı olmalı)
+const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 
 export default function Home() {
   return (
@@ -15,11 +19,10 @@ export default function Home() {
 }
 
 function AppContent() {
-  // Yeni view eklendi: "verify-email"
   const [view, setView] = useState<"login" | "register" | "todo" | "forgot-password" | "verify-email">("login");
   const [resetStep, setResetStep] = useState<1 | 2>(1);
   const [resetCode, setResetCode] = useState("");
-  const [verificationCode, setVerificationCode] = useState(""); // Kayıt doğrulama kodu
+  const [verificationCode, setVerificationCode] = useState(""); 
   const [timer, setTimer] = useState(0); 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,52 +80,33 @@ function AppContent() {
     } catch (err) { setError("Bağlantı hatası."); }
   };
 
-  // --- 1. KAYIT OLMA (Mail Gönderir) ---
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    setError(""); setSuccessMsg("");
+    e.preventDefault(); setError(""); setSuccessMsg("");
     if(password.length < 6) { setError("En az 6 karakter!"); return; }
     try {
       const res = await fetch(`${API_URL}/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }), });
       const data = await res.json();
-      
       if (res.ok) { 
           setSuccessMsg(data.message); 
-          // Başarılıysa Doğrulama Ekranına Git
-          setTimeout(() => {
-              setView("verify-email");
-              setSuccessMsg("");
-          }, 1500); 
+          setTimeout(() => { setView("verify-email"); setSuccessMsg(""); }, 1500); 
       } else { setError(data.message); }
     } catch (err) { setError("Hata oluştu."); }
   };
 
-  // --- 2. MAİL DOĞRULAMA (YENİ) ---
   const handleVerifyEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(""); setSuccessMsg("");
+    e.preventDefault(); setError(""); setSuccessMsg("");
     try {
         const res = await fetch(`${API_URL}/verify-email`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, code: verificationCode }),
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, code: verificationCode }),
         });
         const data = await res.json();
-
-        if (res.ok) {
-            setSuccessMsg(data.message);
-            setTimeout(() => {
-                setView("login"); // Doğrulama bitince Girişe at
-                setVerificationCode("");
-                setSuccessMsg("");
-            }, 2000);
-        } else { setError(data.message); }
+        if (res.ok) { setSuccessMsg(data.message); setTimeout(() => { setView("login"); setVerificationCode(""); setSuccessMsg(""); }, 2000); } 
+        else { setError(data.message); }
     } catch (err) { setError("Sunucu hatası."); }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+    e.preventDefault(); setError("");
     try {
       const res = await fetch(`${API_URL}/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }), });
       const data = await res.json();
@@ -130,10 +114,8 @@ function AppContent() {
     } catch (err) { setError("Hata"); }
   };
 
-  // Şifre Sıfırlama Fonksiyonları
   const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault(); if (timer > 0) return;
-    setError(""); setSuccessMsg("");
+    e.preventDefault(); if (timer > 0) return; setError(""); setSuccessMsg("");
     try {
         const res = await fetch(`${API_URL}/forgot-password`, {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
@@ -148,8 +130,7 @@ function AppContent() {
     if(newPassword.length < 6) { setError("En az 6 karakter!"); return; }
     try {
         const res = await fetch(`${API_URL}/reset-password-verify`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, code: resetCode, newPassword }),
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, code: resetCode, newPassword }),
         });
         const data = await res.json();
         if (res.ok) { setSuccessMsg(data.message); setTimeout(() => { setView("login"); setResetStep(1); setPassword(""); setResetCode(""); setTimer(0); }, 2000); } else { setError(data.message); }
@@ -158,19 +139,14 @@ function AppContent() {
 
   const logout = () => { setView("login"); setTodos([]); setCurrentUser(""); setEmail(""); setPassword(""); };
 
-  // --- EKRANLAR ---
-
-  // YENİ: HESAP DOĞRULAMA EKRANI
   if (view === "verify-email") {
     return (
         <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
         <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-700">
           <h2 className="text-2xl font-bold text-white mb-2 text-center">Hesabı Doğrula</h2>
           <p className="text-gray-400 text-center mb-6 text-sm">{email} adresine gelen kodu gir.</p>
-          
           {error && <div className="bg-red-500/20 text-red-200 p-3 rounded mb-4 text-sm text-center">{error}</div>}
           {successMsg && <div className="bg-green-500/20 text-green-200 p-3 rounded mb-4 text-sm text-center">{successMsg}</div>}
-          
           <form onSubmit={handleVerifyEmail} className="space-y-4">
             <input type="text" placeholder="Doğrulama Kodu" value={verificationCode} onChange={e => setVerificationCode(e.target.value)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 outline-none text-center text-xl tracking-widest" required />
             <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition">Doğrula ve Giriş Yap</button>
@@ -181,7 +157,6 @@ function AppContent() {
     );
   }
 
-  // ŞİFRE SIFIRLAMA
   if (view === "forgot-password") {
     return (
         <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
@@ -210,7 +185,6 @@ function AppContent() {
     );
   }
 
-  // GİRİŞ YAP
   if (view === "login") {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
@@ -234,7 +208,6 @@ function AppContent() {
     );
   }
 
-  // KAYIT OL
   if (view === "register") {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 font-sans">
@@ -256,7 +229,6 @@ function AppContent() {
     );
   }
 
-  // TODO LISTESİ
   return (
     <div className="min-h-screen bg-gray-900 text-white flex justify-center p-4 font-sans">
       <div className="w-full max-w-2xl mt-10">
