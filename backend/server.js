@@ -15,15 +15,15 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// --- BREVO AYARLARI ---
+// ⚠️ BURADAKİ BİLGİLER SENİN VERDİKLERİN:
 const MY_BREVO_EMAIL = "serdarabdulkadir044@gmail.com"; 
-const MY_BREVO_SMTP_KEY = "xsmtpsib-0fd836276c856813a017dcfa193e46152faa397a95516b4d0f2bb075090c4f60-Z4eXThMmJeitKYzJ"; // Senin verdiğin şifre
+const MY_BREVO_SMTP_KEY = "xsmtpsib-0fd836276c856813a017dcfa193e46152faa397a95516b4d0f2bb075090c4f60-Z4eXThMmJeitKYzJ";
 
-// --- MAİL GÖNDERİCİ (Brevo SMTP) ---
+// --- BREVO (PORT 465 - SSL) AYARI ---
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
-    port: 587,
-    secure: false, // TLS kullanır
+    port: 465,            // ⚠️ DEĞİŞTİ: 587 yerine 465 (Daha hızlı ve güvenli)
+    secure: true,         // ⚠️ DEĞİŞTİ: 465 için 'true' olmalı
     auth: {
         user: MY_BREVO_EMAIL,
         pass: MY_BREVO_SMTP_KEY
@@ -31,6 +31,9 @@ const transporter = nodemailer.createTransport({
     tls: {
         rejectUnauthorized: false
     },
+    // Bağlantıyı daha sabırlı yapalım
+    connectionTimeout: 20000, 
+    greetingTimeout: 20000,
     logger: true,
     debug: true
 });
@@ -73,10 +76,10 @@ app.post('/register', async (req, res) => {
         const vCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         try {
-            console.log("Brevo ile mail gönderiliyor...");
+            console.log("Brevo (465) ile mail gönderiliyor...");
             await transporter.sendMail({
-                from: MY_BREVO_EMAIL,
-                to: email,
+                from: MY_BREVO_EMAIL, 
+                to: email,            
                 subject: 'Doğrulama Kodu',
                 text: `Merhaba,\n\nKodunuz: ${vCode}`
             });
@@ -118,7 +121,7 @@ app.post('/login', async (req, res) => {
         if (!user) return res.status(401).json({ message: "Hatalı bilgi!" });
         if (user.authType === "local" && !user.isVerified) return res.status(403).json({ message: "Mail onayı gerekli." });
         res.json({ message: "Giriş OK", user: { email: user.email } });
-    } catch (err) { res.status(500).json({ message: "Sunucu hatası" }); }
+    } catch (err) { res.status(500).json({ message: "Hata" }); }
 });
 
 // 4. GOOGLE GİRİŞ
@@ -130,7 +133,7 @@ app.post('/google-login', async (req, res) => {
         let user = await User.findOne({ email });
         if (!user) { user = new User({ email, authType: "google", isVerified: true }); await user.save(); }
         else if (!user.isVerified) { user.isVerified = true; await user.save(); }
-        res.json({ message: "Google Girişi Başarılı", user: { email: user.email } });
+        res.json({ message: "Giriş Başarılı", user: { email: user.email } });
     } catch (error) { res.status(400).json({ message: "Google hatası." }); }
 });
 
@@ -142,7 +145,6 @@ app.post('/forgot-password', async (req, res) => {
         if (!user) return res.status(404).json({ message: "Kullanıcı yok!" });
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = code; await user.save();
-        
         await transporter.sendMail({ from: MY_BREVO_EMAIL, to: email, subject: 'Kod', text: `Kod: ${code}` });
         res.json({ message: "Kod gönderildi!" });
     } catch (error) { res.status(500).json({ message: "Mail hatası." }); }
