@@ -15,19 +15,18 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ BURAYI DOLDUR:
-const MY_BREVO_EMAIL = "serdarabdulkadir044@gmail.com"; 
-// 👇 YENİ ALDIĞIN ŞİFREYİ BURAYA YAPIŞTIR 👇
-const MY_BREVO_SMTP_KEY = "xsmtpsib-0fd836276c856813a017dcfa193e46152faa397a95516b4d0f2bb075090c4f60-8vfJtHT5ZzTpenDE"; 
+// ⚠️ DEĞİŞİKLİK: Şifreleri koddan değil, Render Environment'tan çekiyoruz
+const MY_BREVO_EMAIL = process.env.MY_BREVO_EMAIL || "serdarabdulkadir044@gmail.com"; 
+const MY_BREVO_SMTP_KEY = process.env.MY_BREVO_SMTP_KEY; 
 
-// --- BREVO (PORT 2525 - ÇALIŞAN AYAR) ---
+// --- BREVO (PORT 2525) ---
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
-    port: 2525,           // Bu port Render'da çalışıyor!
+    port: 2525,           // Bu port Render'da çalışıyor
     secure: false,        
     auth: {
         user: MY_BREVO_EMAIL,
-        pass: MY_BREVO_SMTP_KEY
+        pass: MY_BREVO_SMTP_KEY // Şifreyi gizli kasadan alacak
     },
     tls: {
         rejectUnauthorized: false
@@ -75,6 +74,11 @@ app.post('/register', async (req, res) => {
         try {
             console.log("Brevo (2525) ile mail gönderiliyor...");
             
+            // Şifre kontrolü (Loglara güvenlik için basmıyoruz)
+            if (!MY_BREVO_SMTP_KEY) {
+                throw new Error("SMTP Key bulunamadı! Render Environment ayarlarını kontrol et.");
+            }
+
             await transporter.sendMail({
                 from: MY_BREVO_EMAIL, 
                 to: email,            
@@ -94,13 +98,13 @@ app.post('/register', async (req, res) => {
 
         } catch (mailError) {
             console.error("❌ Mail Hatası:", mailError);
-            res.status(500).json({ message: "Mail gönderilemedi: " + mailError.message });
+            res.status(500).json({ message: "Mail hatası: " + mailError.message });
         }
 
     } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// (Diğer kodlar aynı, yer kaplamasın diye kısalttım - aynen kalacak)
+// (Diğer rotalar aynı, yer kazanmak için kısalttım)
 app.post('/verify-email', async (req, res) => {
     const { email, code } = req.body;
     try {
