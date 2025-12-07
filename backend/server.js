@@ -15,15 +15,16 @@ const MONGO_URI = "mongodb+srv://abdulkadirserdar04_db_user:aS45tmHOktEGMpXS@tod
 const GOOGLE_CLIENT_ID = "994601849494-njuqo1lqadg2jsm05dgmhhh9qu3icbrd.apps.googleusercontent.com";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ⚠️ BURADAKİ BİLGİLER SENİN VERDİKLERİN:
+// ⚠️ SENİN VERDİĞİN BİLGİLER
 const MY_BREVO_EMAIL = "serdarabdulkadir044@gmail.com"; 
-const MY_BREVO_SMTP_KEY = "xsmtpsib-0fd836276c856813a017dcfa193e46152faa397a95516b4d0f2bb075090c4f60-Z4eXThMmJeitKYzJ";
+const MY_BREVO_SMTP_KEY = "xsmtpsib-0fd836276c856813a017dcfa193e46152faa397a95516b4d0f2bb075090c4f60-8vfJtHT5ZzTpenDE";
 
-// --- BREVO (PORT 465 - SSL) AYARI ---
+// --- BREVO (PORT 2525) ---
+// Render bazen 587'yi engeller ama 2525 açıktır.
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
-    port: 465,            // ⚠️ DEĞİŞTİ: 587 yerine 465 (Daha hızlı ve güvenli)
-    secure: true,         // ⚠️ DEĞİŞTİ: 465 için 'true' olmalı
+    port: 2525,           // ⚠️ DEĞİŞTİ: 2525 Portu kullanıyoruz
+    secure: false,        // 2525 için false
     auth: {
         user: MY_BREVO_EMAIL,
         pass: MY_BREVO_SMTP_KEY
@@ -31,9 +32,6 @@ const transporter = nodemailer.createTransport({
     tls: {
         rejectUnauthorized: false
     },
-    // Bağlantıyı daha sabırlı yapalım
-    connectionTimeout: 20000, 
-    greetingTimeout: 20000,
     logger: true,
     debug: true
 });
@@ -62,7 +60,6 @@ const Todo = mongoose.model('Todo', TodoSchema);
 
 // --- ROTALAR ---
 
-// 1. KAYIT OL
 app.post('/register', async (req, res) => {
     const { email, password } = req.body;
     console.log("Kayıt İsteği:", email);
@@ -76,7 +73,8 @@ app.post('/register', async (req, res) => {
         const vCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         try {
-            console.log("Brevo (465) ile mail gönderiliyor...");
+            console.log("Brevo (2525) ile mail gönderiliyor...");
+            
             await transporter.sendMail({
                 from: MY_BREVO_EMAIL, 
                 to: email,            
@@ -96,13 +94,14 @@ app.post('/register', async (req, res) => {
 
         } catch (mailError) {
             console.error("❌ Mail Hatası:", mailError);
-            res.status(500).json({ message: "Mail gönderilemedi. Lütfen tekrar deneyin." });
+            // Hatanın detayını logluyoruz
+            res.status(500).json({ message: "Mail gönderilemedi: " + mailError.message });
         }
 
     } catch (e) { res.status(500).json({ message: "Sunucu hatası" }); }
 });
 
-// 2. MAİL DOĞRULAMA
+// (Diğer rotalar aynı, yer kaplamasın diye kısalttım)
 app.post('/verify-email', async (req, res) => {
     const { email, code } = req.body;
     try {
@@ -113,7 +112,6 @@ app.post('/verify-email', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Hata" }); }
 });
 
-// 3. GİRİŞ YAP
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -124,7 +122,6 @@ app.post('/login', async (req, res) => {
     } catch (err) { res.status(500).json({ message: "Hata" }); }
 });
 
-// 4. GOOGLE GİRİŞ
 app.post('/google-login', async (req, res) => {
     const { token } = req.body;
     try {
@@ -137,7 +134,6 @@ app.post('/google-login', async (req, res) => {
     } catch (error) { res.status(400).json({ message: "Google hatası." }); }
 });
 
-// -- ŞİFRE İŞLEMLERİ --
 app.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
@@ -160,7 +156,6 @@ app.post('/reset-password-verify', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Hata" }); }
 });
 
-// TODO İŞLEMLERİ
 app.get('/todos', async (req, res) => {
     const { email } = req.query; if (!email) return res.json([]);
     const todos = await Todo.find({ userEmail: email }); res.json(todos);
